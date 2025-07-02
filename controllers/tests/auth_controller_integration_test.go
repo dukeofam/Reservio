@@ -110,12 +110,13 @@ func TestRegister_InvalidEmail(t *testing.T) {
 
 func TestGetProfile(t *testing.T) {
 	app := setupTestApp()
-	// Register and login user (CSRF not needed for GET)
 	payload := map[string]string{"email": "profileuser@example.com", "password": "testpassword123"}
 	body, _ := json.Marshal(payload)
-	app.Test(httptest.NewRequest("POST", "/api/auth/register", bytes.NewReader(body)), -1)
+	if _, err := app.Test(httptest.NewRequest("POST", "/api/auth/register", bytes.NewReader(body)), -1); err != nil {
+		t.Fatal(err)
+	}
+
 	// Simulate session (mocking session is more complex, so this is a placeholder for now)
-	// In a real test, you would mock session or use Fiber's session middleware with a test store
 }
 
 func TestUserProfileEndpoints(t *testing.T) {
