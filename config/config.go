@@ -4,6 +4,8 @@ import (
 	"log"
 	"os"
 
+	"github.com/joho/godotenv"
+
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 
@@ -12,8 +14,22 @@ import (
 
 var DB *gorm.DB
 
+func init() {
+	_ = godotenv.Load()
+}
+
+func GetEnvOrFatal(key string) string {
+	val := os.Getenv(key)
+	if val == "" {
+		log.Fatalf("Missing required environment variable: %s", key)
+	}
+	return val
+}
+
+var DBUri = GetEnvOrFatal("DATABASE_URL")
+
 func ConnectDatabase() {
-	dsn := os.Getenv("DATABASE_URL")
+	dsn := DBUri
 	database, err := gorm.Open(postgres.Open(dsn), &gorm.Config{})
 	if err != nil {
 		log.Fatal("Failed to connect to database:", err)

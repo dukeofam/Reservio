@@ -6,6 +6,7 @@ import (
 	"log"
 	"os"
 	"reservio/utils"
+	"time"
 
 	"github.com/gofiber/fiber/v2"
 )
@@ -22,9 +23,12 @@ func CSRFMiddleware() fiber.Handler {
 	return func(c *fiber.Ctx) error {
 		sess, _ := utils.Store.Get(c)
 		token := sess.Get("csrf_token")
-		if token == nil {
+		expiry := sess.Get("csrf_token_expiry")
+		now := time.Now().Unix()
+		if token == nil || expiry == nil || now > expiry.(int64) {
 			token = generateCSRFToken()
 			sess.Set("csrf_token", token)
+			sess.Set("csrf_token_expiry", now+7200) // 2 hours
 			if err := sess.Save(); err != nil {
 				log.Printf("[CSRF] sess.Save error: %v", err)
 			}
@@ -53,6 +57,7 @@ func RegenerateCSRFToken(c *fiber.Ctx) error {
 	sess, _ := utils.Store.Get(c)
 	token := generateCSRFToken()
 	sess.Set("csrf_token", token)
+	sess.Set("csrf_token_expiry", time.Now().Unix()+7200) // 2 hours
 	if err := sess.Save(); err != nil {
 		log.Printf("[CSRF] sess.Save error: %v", err)
 		return err

@@ -1,84 +1,114 @@
-# Reservio
-A Go-based secure reservation backend for kindergarten signups. See API documentation and .env config for setup.
+# Reservio Backend
 
----
+A Go Fiber backend for managing reservations, users, children, and admin operations.
 
-## API Reference
+## 🚀 Getting Started
 
-### Authentication
-- All endpoints under `/api/parent`, `/api/admin`, and `/api/user` require authentication (session-based).
-- Admin endpoints require the user to have the `admin` role.
-- CSRF protection is enabled for all state-changing requests.
+### Requirements
+- Go 1.20+
+- PostgreSQL
 
-### Error Format
-All errors are returned as:
-```json
-{"error": "Error message here"}
+### Setup
+1. **Clone the repo:**
+   ```sh
+   git clone <repo-url>
+   cd reservio
+   ```
+2. **Create a `.env` file:**
+   See the example below. At minimum, set your `DATABASE_URL`.
+3. **Install dependencies:**
+   ```sh
+   go mod tidy
+   ```
+4. **Setup the database:**
+   ```sh
+   ./setup_db.sh
+   ```
+5. **Run the server:**
+   ```sh
+   go run cmd/main.go
+   ```
+6. **Run tests:**
+   ```sh
+   ./run_tests.sh
+   ```
+
+### Example `.env` file
+```
+DATABASE_URL=postgres://reservio:reservio@localhost:5432/reservio?sslmode=disable
+SMTP_USER=your_email@gmail.com
+SMTP_PASSWORD=your_password
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=587
 ```
 
-### Endpoints
+- **DB URI format:**
+  `postgres://<user>:<password>@<host>:<port>/<dbname>?sslmode=disable`
 
-#### Auth
-- `POST /api/auth/register` — Register a new user
+## 🛠️ API Endpoints (Summary)
+
+### Auth
+- `POST /api/auth/register` — Register new user
 - `POST /api/auth/login` — Login
 - `POST /api/auth/logout` — Logout
-- `POST /api/auth/request-reset` — Request password reset (email)
-- `POST /api/auth/reset-password` — Reset password with token
+- `POST /api/auth/request-reset` — Request password reset
+- `POST /api/auth/reset-password` — Reset password
 
-#### User
-- `GET /api/user/profile` — Get current user info
-- `PUT /api/user/profile` — Update user info
+### User
+- `GET /api/user/profile` — Get profile
+- `PUT /api/user/profile` — Update profile
 
-#### Parent
+### Parent
 - `POST /api/parent/children` — Add child
 - `GET /api/parent/children` — List children
 - `PUT /api/parent/children/:id` — Edit child
 - `DELETE /api/parent/children/:id` — Delete child
 - `POST /api/parent/reserve` — Make reservation
-- `GET /api/parent/reservations` — List own reservations
+- `GET /api/parent/reservations` — List my reservations
 - `DELETE /api/parent/reservations/:id` — Cancel reservation
 
-#### Admin
+### Admin (all require admin role)
 - `POST /api/admin/slots` — Create slot
 - `PUT /api/admin/approve/:id` — Approve reservation
 - `PUT /api/admin/reject/:id` — Reject reservation
-- `GET /api/admin/reservations` — List/filter reservations
+- `GET /api/admin/reservations` — List reservations (filter by status)
 - `GET /api/admin/users` — List users
 - `DELETE /api/admin/users/:id` — Delete user
-- `PUT /api/admin/users/:id/role` — Change user role
+- `PUT /api/admin/users/:id/role` — Update user role
 
-#### Slots
-- `GET /api/slots` — List all slots
-
-#### Health/Version
+### Public
+- `GET /api/slots` — List slots
 - `GET /health` — Health check
-- `GET /version` — API version info
+- `GET /version` — Version info
+
+## 🧪 Testing
+- Integration and unit tests are in `controllers/tests/` and `utils/`.
+- Use `./run_tests.sh` to run all tests with a dedicated test DB.
+
+## 📝 Notes
+- All endpoints return JSON.
+- CSRF protection and session security are enabled by default.
+- For production, ensure all secrets are set via environment variables and HTTPS is enforced.
+
+## 📖 API Documentation & OpenAPI (Swagger)
+
+- The OpenAPI spec is in `docs/swagger.yaml` and covers all endpoints.
+- View it locally:
+  - Web: https://editor.swagger.io/ (import `docs/swagger.yaml`)
+  - Docker: `docker run -p 8081:8080 -v $(pwd)/docs/swagger.yaml:/usr/share/nginx/html/swagger.yaml swaggerapi/swagger-ui`
+- See `docs/README.md` for more details.
+
+### Automated Swagger Generation
+
+- This project is ready for [swaggo/swag](https://github.com/swaggo/swag) for Go doc-based OpenAPI generation.
+- To enable, install swag:
+  ```sh
+  go install github.com/swaggo/swag/cmd/swag@latest
+  swag init -g cmd/main.go -o docs/generated
+  ```
+- This will generate OpenAPI docs from Go comments in `docs/generated/swagger.yaml`.
+- You can then view or merge this with the hand-written spec.
 
 ---
 
-### Example Request/Response
-
-**Register:**
-```http
-POST /api/auth/register
-Content-Type: application/json
-
-{
-  "email": "parent@example.com",
-  "password": "strongpassword"
-}
-```
-
-**Response:**
-```json
-{"message": "User registered", "user": "parent@example.com"}
-```
-
-**Error Example:**
-```json
-{"error": "Invalid email format"}
-```
-
----
-
-For more details, see the code or contact the backend team.
+For more details, see the code and comments, or open an issue!

@@ -2,7 +2,9 @@ package utils
 
 import (
 	"fmt"
+	"log"
 	"net/smtp"
+	"time"
 )
 
 var (
@@ -21,5 +23,15 @@ func SendMail(to, subject, body string) error {
 		body
 	auth := smtp.PlainAuth("", SMTPUser, SMTPPassword, SMTPHost)
 	addr := fmt.Sprintf("%s:%s", SMTPHost, SMTPPort)
-	return smtp.SendMail(addr, auth, from, []string{to}, []byte(msg))
+	var err error
+	for i := 1; i <= 3; i++ {
+		err = smtp.SendMail(addr, auth, from, []string{to}, []byte(msg))
+		if err == nil {
+			return nil
+		}
+		log.Printf("[SendMail] Attempt %d failed: %v", i, err)
+		time.Sleep(2 * time.Second)
+	}
+	log.Printf("[SendMail] All attempts failed: %v", err)
+	return err
 }

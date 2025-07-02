@@ -3,6 +3,7 @@ package controllers
 import (
 	"reservio/config"
 	"reservio/models"
+	"reservio/utils"
 
 	"github.com/gofiber/fiber/v2"
 )
@@ -15,10 +16,10 @@ func MakeReservation(c *fiber.Ctx) error {
 
 	var body Req
 	if err := c.BodyParser(&body); err != nil {
-		return c.Status(400).JSON(fiber.Map{"error": "Invalid input"})
+		return utils.RespondWithError(c, 400, "Invalid input")
 	}
 	if body.ChildID == 0 || body.SlotID == 0 {
-		return c.Status(400).JSON(fiber.Map{"error": "child_id and slot_id are required"})
+		return utils.RespondWithError(c, 400, "child_id and slot_id are required")
 	}
 
 	reservation := models.Reservation{
@@ -28,7 +29,7 @@ func MakeReservation(c *fiber.Ctx) error {
 	}
 
 	if err := config.DB.Create(&reservation).Error; err != nil {
-		return c.Status(500).JSON(fiber.Map{"error": "Reservation failed"})
+		return utils.RespondWithError(c, 500, "Reservation failed")
 	}
 
 	return c.JSON(fiber.Map{"message": "Reservation requested"})
@@ -50,7 +51,7 @@ func GetMyReservations(c *fiber.Ctx) error {
 func CancelReservation(c *fiber.Ctx) error {
 	id := c.Params("id")
 	if err := config.DB.Delete(&models.Reservation{}, id).Error; err != nil {
-		return c.Status(500).JSON(fiber.Map{"error": "Failed to cancel reservation"})
+		return utils.RespondWithError(c, 500, "Failed to cancel reservation")
 	}
 	return c.JSON(fiber.Map{"message": "Reservation cancelled"})
 }

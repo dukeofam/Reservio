@@ -39,3 +39,9 @@ func InvalidateAllUserSessions(c *fiber.Ctx) {
 	_ = sess.Destroy()
 	_ = sess.Regenerate()
 }
+
+// RespondWithError sends a JSON error response and logs the error
+func RespondWithError(c *fiber.Ctx, code int, message string) error {
+	log.Printf("[ERROR] %s", message)
+	return c.Status(code).JSON(fiber.Map{"error": message})
+}

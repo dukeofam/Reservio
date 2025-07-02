@@ -36,21 +36,20 @@ func Register(c *fiber.Ctx) error {
 	}
 	var body Request
 	if err := c.BodyParser(&body); err != nil {
-		return c.Status(400).JSON(fiber.Map{"error": "Invalid input"})
+		return utils.RespondWithError(c, 400, "Invalid input")
 	}
 	if !utils.IsEmailValid(body.Email) {
-		return c.Status(400).JSON(fiber.Map{"error": "Invalid email format"})
+		return utils.RespondWithError(c, 400, "Invalid email format")
 	}
 	if !utils.IsPasswordStrong(body.Password) {
-		return c.Status(400).JSON(fiber.Map{"error": "Password must be at least 8 characters"})
+		return utils.RespondWithError(c, 400, "Password must be at least 8 characters")
 	}
 
 	hash, _ := bcrypt.GenerateFromPassword([]byte(body.Password), 14)
 	user := models.User{Email: body.Email, Password: string(hash), Role: "parent"}
 
 	if result := config.DB.Create(&user); result.Error != nil {
-		log.Printf("[Register] DB error: %v", result.Error)
-		return c.Status(500).JSON(fiber.Map{"error": "Could not create user"})
+		return utils.RespondWithError(c, 500, "Could not create user")
 	}
 
 	utils.SetSession(c, user.ID)
@@ -64,23 +63,23 @@ func Login(c *fiber.Ctx) error {
 	}
 	var body Request
 	if err := c.BodyParser(&body); err != nil {
-		return c.Status(400).JSON(fiber.Map{"error": "Invalid input"})
+		return utils.RespondWithError(c, 400, "Invalid input")
 	}
 	if !utils.IsEmailValid(body.Email) {
-		return c.Status(400).JSON(fiber.Map{"error": "Invalid email format"})
+		return utils.RespondWithError(c, 400, "Invalid email format")
 	}
 	if !utils.IsFieldPresent(body.Password) {
-		return c.Status(400).JSON(fiber.Map{"error": "Password is required"})
+		return utils.RespondWithError(c, 400, "Password is required")
 	}
 
 	var user models.User
 	if err := config.DB.Where("email = ?", body.Email).First(&user).Error; err != nil {
 		log.Printf("[Login] Invalid credentials for email: %s", body.Email)
-		return c.Status(401).JSON(fiber.Map{"error": "Invalid credentials"})
+		return utils.RespondWithError(c, 401, "Invalid credentials")
 	}
 
 	if err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(body.Password)); err != nil {
-		return c.Status(401).JSON(fiber.Map{"error": "Invalid credentials"})
+		return utils.RespondWithError(c, 401, "Invalid credentials")
 	}
 
 	utils.SetSession(c, user.ID)
@@ -97,8 +96,7 @@ func GetProfile(c *fiber.Ctx) error {
 	userID := c.Locals("user_id").(uint)
 	var user models.User
 	if err := config.DB.First(&user, userID).Error; err != nil {
-		log.Printf("[GetProfile] User not found: %v", err)
-		return c.Status(404).JSON(fiber.Map{"error": "User not found"})
+		return utils.RespondWithError(c, 404, "User not found")
 	}
 	user.Password = "" // Do not expose password
 	return c.JSON(user)
@@ -108,7 +106,7 @@ func UpdateProfile(c *fiber.Ctx) error {
 	userID := c.Locals("user_id").(uint)
 	var user models.User
 	if err := config.DB.First(&user, userID).Error; err != nil {
-		return c.Status(404).JSON(fiber.Map{"error": "User not found"})
+		return utils.RespondWithError(c, 404, "User not found")
 	}
 	type Req struct {
 		Email    string `json:"email"`
@@ -116,13 +114,13 @@ func UpdateProfile(c *fiber.Ctx) error {
 	}
 	var body Req
 	if err := c.BodyParser(&body); err != nil {
-		return c.Status(400).JSON(fiber.Map{"error": "Invalid input"})
+		return utils.RespondWithError(c, 400, "Invalid input")
 	}
 	if body.Email != "" && !utils.IsEmailValid(body.Email) {
-		return c.Status(400).JSON(fiber.Map{"error": "Invalid email format"})
+		return utils.RespondWithError(c, 400, "Invalid email format")
 	}
 	if body.Password != "" && !utils.IsPasswordStrong(body.Password) {
-		return c.Status(400).JSON(fiber.Map{"error": "Password must be at least 8 characters"})
+		return utils.RespondWithError(c, 400, "Password must be at least 8 characters")
 	}
 	if body.Email != "" {
 		user.Email = body.Email
@@ -132,8 +130,7 @@ func UpdateProfile(c *fiber.Ctx) error {
 		user.Password = string(hash)
 	}
 	if err := config.DB.Save(&user).Error; err != nil {
-		log.Printf("[UpdateProfile] DB error: %v", err)
-		return c.Status(500).JSON(fiber.Map{"error": "Failed to update profile"})
+		return utils.RespondWithError(c, 500, "Failed to update profile")
 	}
 	if body.Password != "" {
 		utils.InvalidateAllUserSessions(c)
@@ -147,15 +144,14 @@ func RequestPasswordReset(c *fiber.Ctx) error {
 	}
 	var body Req
 	if err := c.BodyParser(&body); err != nil {
-		return c.Status(400).JSON(fiber.Map{"error": "Invalid input"})
+		return utils.RespondWithError(c, 400, "Invalid input")
 	}
 	if !utils.IsEmailValid(body.Email) {
-		return c.Status(400).JSON(fiber.Map{"error": "Invalid email format"})
+		return utils.RespondWithError(c, 400, "Invalid email format")
 	}
 	var user models.User
 	if err := config.DB.Where("email = ?", body.Email).First(&user).Error; err != nil {
-		log.Printf("[RequestPasswordReset] User not found: %s", body.Email)
-		return c.Status(404).JSON(fiber.Map{"error": "User not found"})
+		return utils.RespondWithError(c, 404, "User not found")
 	}
 	token := generateResetToken()
 	resetTokens.Lock()
@@ -175,26 +171,25 @@ func ResetPassword(c *fiber.Ctx) error {
 	}
 	var body Req
 	if err := c.BodyParser(&body); err != nil {
-		return c.Status(400).JSON(fiber.Map{"error": "Invalid input"})
+		return utils.RespondWithError(c, 400, "Invalid input")
 	}
 	if !utils.IsPasswordStrong(body.Password) {
-		return c.Status(400).JSON(fiber.Map{"error": "Password must be at least 8 characters"})
+		return utils.RespondWithError(c, 400, "Password must be at least 8 characters")
 	}
 	resetTokens.RLock()
 	userID, ok := resetTokens.m[body.Token]
 	resetTokens.RUnlock()
 	if !ok {
-		return c.Status(400).JSON(fiber.Map{"error": "Invalid or expired token"})
+		return utils.RespondWithError(c, 400, "Invalid or expired token")
 	}
 	var user models.User
 	if err := config.DB.First(&user, userID).Error; err != nil {
-		log.Printf("[ResetPassword] User not found for token: %s", body.Token)
-		return c.Status(404).JSON(fiber.Map{"error": "User not found"})
+		return utils.RespondWithError(c, 404, "User not found")
 	}
 	hash, _ := bcrypt.GenerateFromPassword([]byte(body.Password), 14)
 	user.Password = string(hash)
 	if err := config.DB.Save(&user).Error; err != nil {
-		return c.Status(500).JSON(fiber.Map{"error": "Failed to reset password"})
+		return utils.RespondWithError(c, 500, "Failed to reset password")
 	}
 	resetTokens.Lock()
 	delete(resetTokens.m, body.Token)

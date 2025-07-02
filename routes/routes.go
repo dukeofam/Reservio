@@ -26,6 +26,7 @@ func Setup(app *fiber.App) {
 	parent.Put("/children/:id", controllers.EditChild)
 	parent.Delete("/children/:id", controllers.DeleteChild)
 
+	// --- Admin routes: all require Protected + AdminOnly middleware ---
 	admin := api.Group("/admin", middleware.Protected(), middleware.AdminOnly())
 	admin.Post("/slots", controllers.CreateSlot)
 	admin.Put("/approve/:id", controllers.ApproveReservation)
@@ -34,6 +35,7 @@ func Setup(app *fiber.App) {
 	admin.Get("/users", controllers.ListUsers)
 	admin.Delete("/users/:id", controllers.DeleteUser)
 	admin.Put("/users/:id/role", controllers.UpdateUserRole)
+	// --- End admin routes ---
 
 	user := api.Group("/user", middleware.Protected())
 	user.Get("/profile", controllers.GetProfile)

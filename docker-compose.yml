@@ -1,0 +1,25 @@
+version: '3.8'
+services:
+  db:
+    image: postgres:15
+    restart: always
+    environment:
+      POSTGRES_USER: reservio
+      POSTGRES_PASSWORD: reservio
+      POSTGRES_DB: reservio
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+  app:
+    build: .
+    depends_on:
+      - db
+    environment:
+      DATABASE_URL: postgres://reservio:reservio@db:5432/reservio?sslmode=disable
+    ports:
+      - "8080:8080"
+    volumes:
+      - .:/app
+volumes:
+  pgdata: 
