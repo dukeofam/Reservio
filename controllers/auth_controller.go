@@ -7,6 +7,7 @@ import (
 	"log"
 	"net/http"
 	"reservio/config"
+	"reservio/middleware"
 	"reservio/models"
 	"reservio/utils"
 	"sync"
@@ -113,7 +114,7 @@ func Logout(w http.ResponseWriter, r *http.Request) {
 }
 
 func GetProfile(w http.ResponseWriter, r *http.Request) {
-	userID, ok := r.Context().Value("user_id").(uint)
+	userID, ok := r.Context().Value(middleware.UserIDKey).(uint)
 	if !ok {
 		utils.RespondWithError(w, 401, "Unauthorized")
 		return
@@ -131,7 +132,7 @@ func GetProfile(w http.ResponseWriter, r *http.Request) {
 }
 
 func UpdateProfile(w http.ResponseWriter, r *http.Request) {
-	userID, ok := r.Context().Value("user_id").(uint)
+	userID, ok := r.Context().Value(middleware.UserIDKey).(uint)
 	if !ok {
 		utils.RespondWithError(w, 401, "Unauthorized")
 		return
