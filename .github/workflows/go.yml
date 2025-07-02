@@ -1,0 +1,53 @@
+name: Go CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: reservio
+          POSTGRES_PASSWORD: reservio
+          POSTGRES_DB: reservio_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready -U reservio" --health-interval=10s --health-timeout=5s --health-retries=5
+
+    env:
+      DATABASE_URL: postgres://reservio:reservio@localhost:5432/reservio_test?sslmode=disable
+      TEST_MODE: 1
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Go
+      uses: actions/setup-go@v5
+      with:
+        go-version: '1.22'
+
+    - name: Install dependencies
+      run: go mod download
+
+    - name: Wait for Postgres
+      run: |
+        for i in {1..10}; do
+          pg_isready -h localhost -U reservio && break
+          sleep 2
+        done
+
+    - name: Run DB migrations (if needed)
+      run: ./setup_test_db.sh
+
+    - name: Run tests
+      run: |
+        export TEST_MODE=1
+        ./run_tests.sh
