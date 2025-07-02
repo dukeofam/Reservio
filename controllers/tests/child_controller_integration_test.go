@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"encoding/json"
 	"net/http"
+	"reservio/config"
+	"reservio/models"
 	"strconv"
 	"testing"
 )
@@ -13,6 +15,9 @@ func TestChildEndpoints(t *testing.T) {
 	defer server.Close()
 	csrfToken, cookie := getCSRFTokenAndCookie(server)
 	registerAndLogin(server, "childparent+1@example.com", "testpassword123", csrfToken, cookie)
+
+	// Ensure user is parent in DB
+	config.DB.Model(&models.User{}).Where("email = ?", "childparent+1@example.com").Update("role", "parent")
 
 	// Add child
 	addPayload := map[string]interface{}{"name": "TestChild", "age": 5}
@@ -42,6 +47,9 @@ func TestAddGetEditDeleteChild(t *testing.T) {
 	defer server.Close()
 	csrfToken, cookie := getCSRFTokenAndCookie(server)
 	registerAndLogin(server, "childparent+1@example.com", "testpassword123", csrfToken, cookie)
+
+	// Ensure user is parent in DB
+	config.DB.Model(&models.User{}).Where("email = ?", "childparent+1@example.com").Update("role", "parent")
 
 	// Add child
 	childPayload := map[string]interface{}{"name": "Alice", "age": 5}
@@ -131,6 +139,10 @@ func TestAddChild_InvalidData(t *testing.T) {
 	defer server.Close()
 	csrfToken, cookie := getCSRFTokenAndCookie(server)
 	registerAndLogin(server, "childparent+2@example.com", "testpassword123", csrfToken, cookie)
+
+	// Ensure user is parent in DB
+	config.DB.Model(&models.User{}).Where("email = ?", "childparent+2@example.com").Update("role", "parent")
+
 	// Missing name
 	childPayload := map[string]interface{}{"age": 5}
 	childBody, _ := json.Marshal(childPayload)
@@ -152,6 +164,10 @@ func TestDeleteChild_NotFound(t *testing.T) {
 	defer server.Close()
 	csrfToken, cookie := getCSRFTokenAndCookie(server)
 	registerAndLogin(server, "childparent+3@example.com", "testpassword123", csrfToken, cookie)
+
+	// Ensure user is parent in DB
+	config.DB.Model(&models.User{}).Where("email = ?", "childparent+3@example.com").Update("role", "parent")
+
 	delReq, _ := http.NewRequest("DELETE", server.URL+"/api/parent/children/99999", nil)
 	delReq.Header.Set("X-CSRF-Token", csrfToken)
 	delReq.Header.Set("Cookie", cookie)

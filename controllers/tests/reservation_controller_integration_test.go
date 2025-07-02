@@ -1,6 +1,8 @@
 package controllers
 
 import (
+	"reservio/config"
+	"reservio/models"
 	"testing"
 )
 
@@ -9,6 +11,9 @@ func TestReservationEndpoints(t *testing.T) {
 	defer server.Close()
 	csrfToken, cookie := getCSRFTokenAndCookie(server)
 	registerAndLogin(server, "resparent+1@example.com", "testpassword123", csrfToken, cookie)
+
+	// Set user as admin in DB
+	config.DB.Model(&models.User{}).Where("email = ?", "resparent+1@example.com").Update("role", "admin")
 
 	// Create slot as admin
 	slotID := createSlot(server, csrfToken, cookie, "2025-12-10", 5)
