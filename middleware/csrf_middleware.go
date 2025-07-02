@@ -28,7 +28,7 @@ func CSRFMiddleware(next http.Handler) http.Handler {
 			token = generateCSRFToken()
 			session.Values["csrf_token"] = token
 			session.Values["csrf_token_expiry"] = now + 7200 // 2 hours
-			session.Save(r, w)
+			_ = session.Save(r, w)
 		}
 
 		if os.Getenv("TEST_MODE") == "1" && r.Method == http.MethodGet {
@@ -47,7 +47,7 @@ func CSRFMiddleware(next http.Handler) http.Handler {
 				log.Printf("[CSRF] Invalid CSRF token: got=%s expected=%s", requestToken, token)
 				w.Header().Set("Content-Type", "application/json")
 				w.WriteHeader(http.StatusForbidden)
-				w.Write([]byte(`{"error": "Invalid CSRF token"}`))
+				_, _ = w.Write([]byte(`{"error": "Invalid CSRF token"}`))
 				return
 			}
 		}

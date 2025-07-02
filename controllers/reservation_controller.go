@@ -36,14 +36,14 @@ func MakeReservation(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]string{"message": "Reservation requested"})
+	_ = json.NewEncoder(w).Encode(map[string]string{"message": "Reservation requested"})
 }
 
 func GetReservations(w http.ResponseWriter, r *http.Request) {
 	var reservations []models.Reservation
 	config.DB.Find(&reservations)
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(reservations)
+	_ = json.NewEncoder(w).Encode(reservations)
 }
 
 func GetMyReservations(w http.ResponseWriter, r *http.Request) {
@@ -56,7 +56,7 @@ func GetMyReservations(w http.ResponseWriter, r *http.Request) {
 	var reservations []models.Reservation
 	config.DB.Joins("JOIN children ON children.id = reservations.child_id").Where("children.parent_id = ?", userID).Find(&reservations)
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(reservations)
+	_ = json.NewEncoder(w).Encode(reservations)
 }
 
 func CancelReservation(w http.ResponseWriter, r *http.Request) {
@@ -68,12 +68,12 @@ func CancelReservation(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]string{"message": "Reservation cancelled"})
+	_ = json.NewEncoder(w).Encode(map[string]string{"message": "Reservation cancelled"})
 }
 
 func ListSlots(w http.ResponseWriter, r *http.Request) {
 	var slots []models.Slot
 	config.DB.Find(&slots)
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(slots)
+	_ = json.NewEncoder(w).Encode(slots)
 }

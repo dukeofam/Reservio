@@ -38,7 +38,7 @@ func AddChild(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(child)
+	_ = json.NewEncoder(w).Encode(child)
 }
 
 func GetChildren(w http.ResponseWriter, r *http.Request) {
@@ -51,7 +51,7 @@ func GetChildren(w http.ResponseWriter, r *http.Request) {
 	var children []models.Child
 	config.DB.Where("parent_id = ?", userID).Find(&children)
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(children)
+	_ = json.NewEncoder(w).Encode(children)
 }
 
 func EditChild(w http.ResponseWriter, r *http.Request) {
@@ -91,7 +91,7 @@ func EditChild(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(child)
+	_ = json.NewEncoder(w).Encode(child)
 }
 
 func DeleteChild(w http.ResponseWriter, r *http.Request) {
@@ -115,5 +115,5 @@ func DeleteChild(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]string{"message": "Child deleted"})
+	_ = json.NewEncoder(w).Encode(map[string]string{"message": "Child deleted"})
 }

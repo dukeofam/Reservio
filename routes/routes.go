@@ -52,11 +52,13 @@ func SetupRouter() *mux.Router {
 	api.HandleFunc("/slots", controllers.ListSlots).Methods("GET")
 
 	r.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
-		w.Write([]byte("OK"))
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte("OK"))
 	}).Methods("GET")
 	r.HandleFunc("/version", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		w.Write([]byte(`{"version": "1.0.0", "commit": "dev"}`))
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte(`{"version": "1.0.0", "commit": "dev"}`))
 	}).Methods("GET")
 
 	return r

@@ -1,7 +1,6 @@
 package utils
 
 import (
-	"encoding/json"
 	"log"
 	"net/http"
 	"strconv"
@@ -57,13 +56,13 @@ func SetSession(w http.ResponseWriter, r *http.Request, userID uint) {
 		Secure:   true,
 		SameSite: http.SameSiteStrictMode,
 	}
-	session.Save(r, w)
+	_ = session.Save(r, w)
 }
 
 func ClearSession(w http.ResponseWriter, r *http.Request) {
 	session, _ := config.Store.Get(r, "session")
 	session.Options.MaxAge = -1
-	session.Save(r, w)
+	_ = session.Save(r, w)
 }
 
 // Invalidate current session (global logout requires tracking all user sessions)
@@ -76,5 +75,5 @@ func RespondWithError(w http.ResponseWriter, code int, message string) {
 	log.Printf("[ERROR] %s", message)
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(code)
-	json.NewEncoder(w).Encode(map[string]string{"error": message})
+	_, _ = w.Write([]byte(message))
 }

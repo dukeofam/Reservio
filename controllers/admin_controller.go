@@ -26,7 +26,7 @@ func CreateSlot(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(slot)
+	_ = json.NewEncoder(w).Encode(slot)
 }
 
 func ApproveReservation(w http.ResponseWriter, r *http.Request) {
@@ -45,7 +45,7 @@ func ApproveReservation(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(reservation)
+	_ = json.NewEncoder(w).Encode(reservation)
 }
 
 func RejectReservation(w http.ResponseWriter, r *http.Request) {
@@ -64,7 +64,7 @@ func RejectReservation(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(reservation)
+	_ = json.NewEncoder(w).Encode(reservation)
 }
 
 func GetReservationsByStatus(w http.ResponseWriter, r *http.Request) {
@@ -76,14 +76,14 @@ func GetReservationsByStatus(w http.ResponseWriter, r *http.Request) {
 		config.DB.Find(&reservations)
 	}
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(reservations)
+	_ = json.NewEncoder(w).Encode(reservations)
 }
 
 func ListUsers(w http.ResponseWriter, r *http.Request) {
 	var users []models.User
 	config.DB.Find(&users)
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(users)
+	_ = json.NewEncoder(w).Encode(users)
 }
 
 func DeleteUser(w http.ResponseWriter, r *http.Request) {
@@ -95,7 +95,7 @@ func DeleteUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]string{"message": "User deleted"})
+	_ = json.NewEncoder(w).Encode(map[string]string{"message": "User deleted"})
 }
 
 func UpdateUserRole(w http.ResponseWriter, r *http.Request) {
@@ -122,5 +122,5 @@ func UpdateUserRole(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(user)
+	_ = json.NewEncoder(w).Encode(user)
 }
