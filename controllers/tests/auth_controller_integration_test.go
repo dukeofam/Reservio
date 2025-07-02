@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"encoding/json"
 	"net/http"
-	"net/http/httptest"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -122,13 +121,27 @@ func TestRegister_InvalidEmail(t *testing.T) {
 func TestGetProfile(t *testing.T) {
 	server := setupTestApp()
 	defer server.Close()
-	payload := map[string]string{"email": "profileuser@example.com", "password": "testpassword123"}
-	body, _ := json.Marshal(payload)
-	if _, err := http.DefaultClient.Do(httptest.NewRequest("POST", server.URL+"/api/auth/register", bytes.NewReader(body))); err != nil {
+	csrfToken, cookie := getCSRFTokenAndCookie(server)
+	csrfToken, cookie = registerAndLogin(server, "profileuser@example.com", "testpassword123", csrfToken, cookie)
+
+	getReq, _ := http.NewRequest("GET", server.URL+"/api/user/profile", nil)
+	getReq.Header.Set("Cookie", cookie)
+	getResp, err := http.DefaultClient.Do(getReq)
+	if err != nil {
+		t.Fatalf("http.DefaultClient.Do error (get profile): %v", err)
+	}
+	if getResp.StatusCode != 200 {
+		var bodyBytes bytes.Buffer
+		_, _ = bodyBytes.ReadFrom(getResp.Body)
+		t.Fatalf("expected 200, got %d, body: %s", getResp.StatusCode, bodyBytes.String())
+	}
+	var profile map[string]interface{}
+	if err := json.NewDecoder(getResp.Body).Decode(&profile); err != nil {
 		t.Fatal(err)
 	}
-
-	// Simulate session (mocking session is more complex, so this is a placeholder for now)
+	if profile["email"] != "profileuser@example.com" {
+		t.Fatalf("expected email 'profileuser@example.com', got %v", profile["email"])
+	}
 }
 
 func TestUserProfileEndpoints(t *testing.T) {

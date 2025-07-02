@@ -75,5 +75,6 @@ func RespondWithError(w http.ResponseWriter, code int, message string) {
 	log.Printf("[ERROR] %s", message)
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(code)
-	_, _ = w.Write([]byte(message))
+	jsonResp := []byte(`{"error": "` + message + `"}`)
+	_, _ = w.Write(jsonResp)
 }
