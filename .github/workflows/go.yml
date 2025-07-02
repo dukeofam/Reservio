@@ -34,7 +34,7 @@ jobs:
       TEST_MODE: 1
       REDIS_ADDR: localhost:6379
       SESSION_SECRET: "testsecret"
-      REDIS_PASSWORD: "testpassword"
+      REDIS_PASSWORD: ""
 
     steps:
     - uses: actions/checkout@v4
