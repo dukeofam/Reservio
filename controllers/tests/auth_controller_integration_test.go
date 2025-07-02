@@ -3,7 +3,6 @@ package controllers
 import (
 	"bytes"
 	"encoding/json"
-	"net/http"
 	"net/http/httptest"
 	"testing"
 
@@ -143,9 +142,7 @@ func TestUserProfileEndpoints(t *testing.T) {
 	updateReq.Header.Set("Content-Type", "application/json")
 	updateReq.Header.Set("X-CSRF-Token", csrfToken)
 	updateReq.Header.Set("Cookie", cookie)
-	var updateResp *http.Response
-	var updateErr error
-	updateResp, updateErr = app.Test(updateReq, -1)
+	updateResp, updateErr := app.Test(updateReq, -1)
 	assert.NoError(t, updateErr)
 	assert.Equal(t, 200, updateResp.StatusCode)
 	var updateResult map[string]interface{}
