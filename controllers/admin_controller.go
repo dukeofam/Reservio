@@ -16,13 +16,13 @@ func CreateSlot(w http.ResponseWriter, r *http.Request) {
 	}
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(map[string]string{"error": "Invalid input"})
+		_ = json.NewEncoder(w).Encode(map[string]string{"error": "Invalid input"})
 		return
 	}
 	slot := models.Slot{Date: body.Date, Capacity: body.Capacity}
 	if err := config.DB.Create(&slot).Error; err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
-		json.NewEncoder(w).Encode(map[string]string{"error": "Failed to create slot"})
+		_ = json.NewEncoder(w).Encode(map[string]string{"error": "Failed to create slot"})
 		return
 	}
 	w.Header().Set("Content-Type", "application/json")
@@ -35,13 +35,13 @@ func ApproveReservation(w http.ResponseWriter, r *http.Request) {
 	var reservation models.Reservation
 	if err := config.DB.First(&reservation, id).Error; err != nil {
 		w.WriteHeader(http.StatusNotFound)
-		json.NewEncoder(w).Encode(map[string]string{"error": "Reservation not found"})
+		_ = json.NewEncoder(w).Encode(map[string]string{"error": "Reservation not found"})
 		return
 	}
 	reservation.Status = "approved"
 	if err := config.DB.Save(&reservation).Error; err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
-		json.NewEncoder(w).Encode(map[string]string{"error": "Failed to approve reservation"})
+		_ = json.NewEncoder(w).Encode(map[string]string{"error": "Failed to approve reservation"})
 		return
 	}
 	w.Header().Set("Content-Type", "application/json")
@@ -54,13 +54,13 @@ func RejectReservation(w http.ResponseWriter, r *http.Request) {
 	var reservation models.Reservation
 	if err := config.DB.First(&reservation, id).Error; err != nil {
 		w.WriteHeader(http.StatusNotFound)
-		json.NewEncoder(w).Encode(map[string]string{"error": "Reservation not found"})
+		_ = json.NewEncoder(w).Encode(map[string]string{"error": "Reservation not found"})
 		return
 	}
 	reservation.Status = "rejected"
 	if err := config.DB.Save(&reservation).Error; err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
-		json.NewEncoder(w).Encode(map[string]string{"error": "Failed to reject reservation"})
+		_ = json.NewEncoder(w).Encode(map[string]string{"error": "Failed to reject reservation"})
 		return
 	}
 	w.Header().Set("Content-Type", "application/json")
@@ -91,7 +91,7 @@ func DeleteUser(w http.ResponseWriter, r *http.Request) {
 	id := vars["id"]
 	if err := config.DB.Delete(&models.User{}, id).Error; err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
-		json.NewEncoder(w).Encode(map[string]string{"error": "Failed to delete user"})
+		_ = json.NewEncoder(w).Encode(map[string]string{"error": "Failed to delete user"})
 		return
 	}
 	w.Header().Set("Content-Type", "application/json")
@@ -106,19 +106,19 @@ func UpdateUserRole(w http.ResponseWriter, r *http.Request) {
 	}
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(map[string]string{"error": "Invalid input"})
+		_ = json.NewEncoder(w).Encode(map[string]string{"error": "Invalid input"})
 		return
 	}
 	var user models.User
 	if err := config.DB.First(&user, id).Error; err != nil {
 		w.WriteHeader(http.StatusNotFound)
-		json.NewEncoder(w).Encode(map[string]string{"error": "User not found"})
+		_ = json.NewEncoder(w).Encode(map[string]string{"error": "User not found"})
 		return
 	}
 	user.Role = body.Role
 	if err := config.DB.Save(&user).Error; err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
-		json.NewEncoder(w).Encode(map[string]string{"error": "Failed to update user role"})
+		_ = json.NewEncoder(w).Encode(map[string]string{"error": "Failed to update user role"})
 		return
 	}
 	w.Header().Set("Content-Type", "application/json")
