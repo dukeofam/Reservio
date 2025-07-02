@@ -2,9 +2,15 @@ package utils
 
 import (
 	"net/http/httptest"
+	"os"
 	"reservio/config"
 	"testing"
 )
+
+func TestMain(m *testing.M) {
+	config.InitSessionStore()
+	os.Exit(m.Run())
+}
 
 func TestSetSessionAndClearSession(t *testing.T) {
 	r := httptest.NewRequest("GET", "/", nil)
