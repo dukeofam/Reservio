@@ -30,7 +30,6 @@ func Setup(app *fiber.App) {
 	admin.Post("/slots", controllers.CreateSlot)
 	admin.Put("/approve/:id", controllers.ApproveReservation)
 	admin.Put("/reject/:id", controllers.RejectReservation)
-	admin.Get("/reservations", controllers.GetReservations)
 	admin.Get("/reservations", controllers.GetReservationsByStatus)
 	admin.Get("/users", controllers.ListUsers)
 	admin.Delete("/users/:id", controllers.DeleteUser)

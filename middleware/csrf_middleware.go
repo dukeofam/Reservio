@@ -40,10 +40,23 @@ func CSRFMiddleware() fiber.Handler {
 				requestToken = c.FormValue("csrf_token")
 			}
 			if requestToken != token {
+				log.Printf("[CSRF] Invalid CSRF token: got=%s expected=%s", requestToken, token)
 				return c.Status(403).JSON(fiber.Map{"error": "Invalid CSRF token"})
 			}
 		}
 		c.Locals("csrf_token", token)
 		return c.Next()
 	}
+}
+
+func RegenerateCSRFToken(c *fiber.Ctx) error {
+	sess, _ := utils.Store.Get(c)
+	token := generateCSRFToken()
+	sess.Set("csrf_token", token)
+	if err := sess.Save(); err != nil {
+		log.Printf("[CSRF] sess.Save error: %v", err)
+		return err
+	}
+	c.Locals("csrf_token", token)
+	return nil
 }

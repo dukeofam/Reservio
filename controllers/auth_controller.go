@@ -10,6 +10,8 @@ import (
 	"log"
 	"sync"
 
+	"reservio/middleware"
+
 	"github.com/gofiber/fiber/v2"
 	"golang.org/x/crypto/bcrypt"
 )
@@ -82,6 +84,7 @@ func Login(c *fiber.Ctx) error {
 	}
 
 	utils.SetSession(c, user.ID)
+	_ = middleware.RegenerateCSRFToken(c)
 	return c.JSON(fiber.Map{"message": "Logged in", "user": user.Email})
 }
 
@@ -131,6 +134,9 @@ func UpdateProfile(c *fiber.Ctx) error {
 	if err := config.DB.Save(&user).Error; err != nil {
 		log.Printf("[UpdateProfile] DB error: %v", err)
 		return c.Status(500).JSON(fiber.Map{"error": "Failed to update profile"})
+	}
+	if body.Password != "" {
+		utils.InvalidateAllUserSessions(c)
 	}
 	return c.JSON(fiber.Map{"message": "Profile updated"})
 }
@@ -193,5 +199,7 @@ func ResetPassword(c *fiber.Ctx) error {
 	resetTokens.Lock()
 	delete(resetTokens.m, body.Token)
 	resetTokens.Unlock()
+	utils.InvalidateAllUserSessions(c)
+	_ = middleware.RegenerateCSRFToken(c)
 	return c.JSON(fiber.Map{"message": "Password reset successful"})
 }

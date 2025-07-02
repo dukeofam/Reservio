@@ -22,7 +22,19 @@ func main() {
 
 	config.ConnectDatabase()
 
-	app := fiber.New()
+	app := fiber.New(fiber.Config{
+		ErrorHandler: func(c *fiber.Ctx, err error) error {
+			code := fiber.StatusInternalServerError
+			if e, ok := err.(*fiber.Error); ok {
+				code = e.Code
+			}
+			accept := c.Get("Accept")
+			if accept == "application/json" || c.Path() == "/api" || len(c.Path()) > 4 && c.Path()[:5] == "/api/" {
+				return c.Status(code).JSON(fiber.Map{"error": err.Error()})
+			}
+			return c.Status(code).SendString(err.Error())
+		},
+	})
 	app.Use(logger.New())
 	// Add secure headers
 	app.Use(func(c *fiber.Ctx) error {
@@ -39,7 +51,7 @@ func main() {
 		return c.Next()
 	})
 	app.Use(limiter.New(limiter.Config{
-		Max:        10,
+		Max:        5,
 		Expiration: 1 * time.Minute,
 		KeyGenerator: func(c *fiber.Ctx) string {
 			return c.IP()

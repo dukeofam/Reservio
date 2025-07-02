@@ -1,6 +1,7 @@
 package middleware
 
 import (
+	"log"
 	"strconv"
 
 	"reservio/config"
@@ -33,9 +34,11 @@ func AdminOnly() fiber.Handler {
 		userID := c.Locals("user_id").(uint)
 		var user models.User
 		if err := config.DB.First(&user, userID).Error; err != nil {
+			log.Printf("[AdminOnly] Forbidden: user not found (user_id=%d)", userID)
 			return c.Status(403).JSON(fiber.Map{"error": "Forbidden"})
 		}
 		if user.Role != "admin" {
+			log.Printf("[AdminOnly] Forbidden: user_id=%d, role=%s", userID, user.Role)
 			return c.Status(403).JSON(fiber.Map{"error": "Forbidden"})
 		}
 		return c.Next()
