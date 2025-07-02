@@ -3,6 +3,7 @@ package controllers
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"testing"
 
@@ -122,6 +123,7 @@ func TestGetProfile(t *testing.T) {
 	server := setupTestApp()
 	defer server.Close()
 	csrfToken, cookie := getCSRFTokenAndCookie(server)
+	fmt.Printf("csrfToken: %s, cookie: %s\n", csrfToken, cookie)
 	_, cookie = registerAndLogin(server, "profileuser@example.com", "testpassword123", csrfToken, cookie)
 
 	getReq, _ := http.NewRequest("GET", server.URL+"/api/user/profile", nil)
@@ -148,6 +150,7 @@ func TestUserProfileEndpoints(t *testing.T) {
 	server := setupTestApp()
 	defer server.Close()
 	csrfToken, cookie := getCSRFTokenAndCookie(server)
+	fmt.Printf("csrfToken: %s, cookie: %s\n", csrfToken, cookie)
 	registerAndLogin(server, "profileuser@example.com", "testpassword123", csrfToken, cookie)
 
 	// Get profile

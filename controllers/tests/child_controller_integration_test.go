@@ -3,6 +3,7 @@ package controllers
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"reservio/config"
 	"reservio/models"
@@ -14,6 +15,7 @@ func TestChildEndpoints(t *testing.T) {
 	server := setupTestApp()
 	defer server.Close()
 	csrfToken, cookie := getCSRFTokenAndCookie(server)
+	fmt.Printf("csrfToken: %s, cookie: %s\n", csrfToken, cookie)
 	_, cookie = registerAndLogin(server, "childparent+1@example.com", "testpassword123", csrfToken, cookie)
 
 	// Ensure user is parent in DB
@@ -46,6 +48,7 @@ func TestAddGetEditDeleteChild(t *testing.T) {
 	server := setupTestApp()
 	defer server.Close()
 	csrfToken, cookie := getCSRFTokenAndCookie(server)
+	fmt.Printf("csrfToken: %s, cookie: %s\n", csrfToken, cookie)
 	_, cookie = registerAndLogin(server, "childparent+1@example.com", "testpassword123", csrfToken, cookie)
 
 	// Ensure user is parent in DB
@@ -138,6 +141,7 @@ func TestAddChild_InvalidData(t *testing.T) {
 	server := setupTestApp()
 	defer server.Close()
 	csrfToken, cookie := getCSRFTokenAndCookie(server)
+	fmt.Printf("csrfToken: %s, cookie: %s\n", csrfToken, cookie)
 	_, cookie = registerAndLogin(server, "childparent+2@example.com", "testpassword123", csrfToken, cookie)
 
 	// Ensure user is parent in DB
@@ -163,6 +167,7 @@ func TestDeleteChild_NotFound(t *testing.T) {
 	server := setupTestApp()
 	defer server.Close()
 	csrfToken, cookie := getCSRFTokenAndCookie(server)
+	fmt.Printf("csrfToken: %s, cookie: %s\n", csrfToken, cookie)
 	_, cookie = registerAndLogin(server, "childparent+3@example.com", "testpassword123", csrfToken, cookie)
 
 	// Ensure user is parent in DB
