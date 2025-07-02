@@ -3,6 +3,11 @@
 # Exit on error
 set -e
 
+export PGHOST=localhost
+export PGUSER=reservio
+export PGPASSWORD=reservio
+export PGDATABASE=reservio_test
+
 DB_USER="reservio"
 DB_PASS="reservio"
 DB_NAME="reservio_test"
