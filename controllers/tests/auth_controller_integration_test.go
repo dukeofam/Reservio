@@ -126,9 +126,13 @@ func TestUserProfileEndpoints(t *testing.T) {
 	// Get profile
 	getReq := httptest.NewRequest("GET", "/api/user/profile", nil)
 	getReq.Header.Set("Cookie", cookie)
-	getResp, err := app.Test(getReq, -1)
-	assert.NoError(t, err)
-	assert.Equal(t, 200, getResp.StatusCode)
+	getResp, getErr := app.Test(getReq, -1)
+	if getErr != nil {
+		t.Fatalf("app.Test error (get profile): %v", getErr)
+	}
+	if getResp.StatusCode != 200 {
+		t.Fatalf("expected 200, got %d", getResp.StatusCode)
+	}
 	var profile map[string]interface{}
 	if err := json.NewDecoder(getResp.Body).Decode(&profile); err != nil {
 		t.Fatal(err)
@@ -142,9 +146,13 @@ func TestUserProfileEndpoints(t *testing.T) {
 	updateReq.Header.Set("Content-Type", "application/json")
 	updateReq.Header.Set("X-CSRF-Token", csrfToken)
 	updateReq.Header.Set("Cookie", cookie)
-	updateResp, err := app.Test(updateReq, -1)
-	assert.NoError(t, err)
-	assert.Equal(t, 200, updateResp.StatusCode)
+	updateResp, updateErr := app.Test(updateReq, -1)
+	if updateErr != nil {
+		t.Fatalf("app.Test error (update profile): %v", updateErr)
+	}
+	if updateResp.StatusCode != 200 {
+		t.Fatalf("expected 200, got %d", updateResp.StatusCode)
+	}
 	var updateResult map[string]interface{}
 	if err := json.NewDecoder(updateResp.Body).Decode(&updateResult); err != nil {
 		t.Fatal(err)
