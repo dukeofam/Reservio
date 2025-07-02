@@ -12,7 +12,7 @@ jobs:
 
     services:
       postgres:
-        image: postgres:latest
+        image: postgres:15
         env:
           POSTGRES_USER: reservio
           POSTGRES_PASSWORD: reservio
@@ -23,7 +23,7 @@ jobs:
           --health-cmd="pg_isready -U reservio" --health-interval=10s --health-timeout=5s --health-retries=5
 
       redis:
-        image: redis:latest
+        image: redis:1.4.0
         ports:
           - 6379:6379
         options: >-
