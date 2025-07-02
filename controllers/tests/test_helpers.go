@@ -3,6 +3,7 @@ package controllers
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -72,7 +73,11 @@ func createSlot(server *httptest.Server, csrfToken, cookie, date string, capacit
 	if err := json.NewDecoder(slotResp.Body).Decode(&slotResult); err != nil {
 		panic(err)
 	}
-	return int(slotResult["ID"].(float64))
+	idVal, ok := slotResult["ID"]
+	if !ok || idVal == nil {
+		panic("createSlot: expected slot ID in response, got: " + fmt.Sprintf("%v", slotResult))
+	}
+	return int(idVal.(float64))
 }
 
 func createChild(server *httptest.Server, csrfToken, cookie, name, birthdate string) int {
