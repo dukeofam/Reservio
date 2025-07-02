@@ -26,7 +26,9 @@ func TestAddGetEditDeleteChild(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, 200, addResp.StatusCode)
 	var added map[string]interface{}
-	json.NewDecoder(addResp.Body).Decode(&added)
+	if err := json.NewDecoder(addResp.Body).Decode(&added); err != nil {
+		t.Fatal(err)
+	}
 	assert.Equal(t, "Alice", added["Name"])
 
 	// Get children
@@ -36,7 +38,9 @@ func TestAddGetEditDeleteChild(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, 200, getResp.StatusCode)
 	var children []map[string]interface{}
-	json.NewDecoder(getResp.Body).Decode(&children)
+	if err := json.NewDecoder(getResp.Body).Decode(&children); err != nil {
+		t.Fatal(err)
+	}
 	assert.True(t, len(children) > 0)
 
 	// Edit child
@@ -51,7 +55,9 @@ func TestAddGetEditDeleteChild(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, 200, editResp.StatusCode)
 	var edited map[string]interface{}
-	json.NewDecoder(editResp.Body).Decode(&edited)
+	if err := json.NewDecoder(editResp.Body).Decode(&edited); err != nil {
+		t.Fatal(err)
+	}
 	assert.Equal(t, "AliceUpdated", edited["Name"])
 
 	// Delete child
