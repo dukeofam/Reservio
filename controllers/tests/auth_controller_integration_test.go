@@ -130,7 +130,9 @@ func TestUserProfileEndpoints(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, 200, getResp.StatusCode)
 	var profile map[string]interface{}
-	json.NewDecoder(getResp.Body).Decode(&profile)
+	if err := json.NewDecoder(getResp.Body).Decode(&profile); err != nil {
+		t.Fatal(err)
+	}
 	assert.Equal(t, "profileuser@example.com", profile["Email"])
 
 	// Update profile
@@ -144,7 +146,9 @@ func TestUserProfileEndpoints(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, 200, updateResp.StatusCode)
 	var updateResult map[string]interface{}
-	json.NewDecoder(updateResp.Body).Decode(&updateResult)
+	if err := json.NewDecoder(updateResp.Body).Decode(&updateResult); err != nil {
+		t.Fatal(err)
+	}
 	assert.Equal(t, "Profile updated", updateResult["message"])
 }
 
@@ -164,7 +168,9 @@ func TestPasswordResetEndpoints(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, 200, resetResp.StatusCode)
 	var resetResult map[string]interface{}
-	json.NewDecoder(resetResp.Body).Decode(&resetResult)
+	if err := json.NewDecoder(resetResp.Body).Decode(&resetResult); err != nil {
+		t.Fatal(err)
+	}
 	assert.Contains(t, resetResult["message"], "Password reset email sent")
 
 	// Simulate token (would be sent by email in real app)
@@ -191,6 +197,8 @@ func TestHealthAndVersionEndpoints(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, 200, versionResp.StatusCode)
 	var version map[string]interface{}
-	json.NewDecoder(versionResp.Body).Decode(&version)
+	if err := json.NewDecoder(versionResp.Body).Decode(&version); err != nil {
+		t.Fatal(err)
+	}
 	assert.Equal(t, "1.0.0", version["version"])
 }
