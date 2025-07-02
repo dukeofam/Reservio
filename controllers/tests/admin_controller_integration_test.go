@@ -36,7 +36,9 @@ func TestAdminSlotCreationAndUserManagement(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, 200, slotResp.StatusCode)
 	var slotResult map[string]interface{}
-	json.NewDecoder(slotResp.Body).Decode(&slotResult)
+	if err := json.NewDecoder(slotResp.Body).Decode(&slotResult); err != nil {
+		t.Fatal(err)
+	}
 	assert.Equal(t, "2025-12-02", slotResult["Date"])
 
 	// List users
@@ -46,7 +48,9 @@ func TestAdminSlotCreationAndUserManagement(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, 200, usersResp.StatusCode)
 	var users []map[string]interface{}
-	json.NewDecoder(usersResp.Body).Decode(&users)
+	if err := json.NewDecoder(usersResp.Body).Decode(&users); err != nil {
+		t.Fatal(err)
+	}
 	assert.True(t, len(users) > 0)
 
 	// Change user role

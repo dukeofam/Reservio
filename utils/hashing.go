@@ -1,6 +1,7 @@
 package utils
 
 import (
+	"log"
 	"strconv"
 
 	"github.com/gofiber/fiber/v2"
@@ -17,13 +18,13 @@ func SetSession(c *fiber.Ctx, userID uint) {
 	sess, _ := Store.Get(c)
 	sess.Set("user_id", strconv.Itoa(int(userID)))
 	if err := sess.Save(); err != nil {
-		// Optionally log or handle error
+		log.Printf("[SetSession] sess.Save error: %v", err)
 	}
 }
 
 func ClearSession(c *fiber.Ctx) {
 	sess, _ := Store.Get(c)
 	if err := sess.Destroy(); err != nil {
-		// Optionally log or handle error
+		log.Printf("[ClearSession] sess.Destroy error: %v", err)
 	}
 }

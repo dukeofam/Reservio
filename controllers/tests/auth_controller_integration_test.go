@@ -172,7 +172,9 @@ func TestHealthAndVersionEndpoints(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, 200, healthResp.StatusCode)
 	buf := new(bytes.Buffer)
-	buf.ReadFrom(healthResp.Body)
+	if _, err := buf.ReadFrom(healthResp.Body); err != nil {
+		t.Fatal(err)
+	}
 	assert.Equal(t, "OK", buf.String())
 
 	// Version

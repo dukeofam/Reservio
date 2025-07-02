@@ -3,6 +3,7 @@ package middleware
 import (
 	"crypto/rand"
 	"encoding/base64"
+	"log"
 	"os"
 	"reservio/utils"
 
@@ -25,7 +26,7 @@ func CSRFMiddleware() fiber.Handler {
 			token = generateCSRFToken()
 			sess.Set("csrf_token", token)
 			if err := sess.Save(); err != nil {
-				// Optionally log or handle error
+				log.Printf("[CSRF] sess.Save error: %v", err)
 			}
 		}
 

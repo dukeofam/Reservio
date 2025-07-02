@@ -31,13 +31,16 @@ func TestSetSessionAndClearSession(t *testing.T) {
 	// Set session
 	req := httptest.NewRequest(http.MethodGet, "/set", nil)
 	rr := httptest.NewRecorder()
-	app.Test(req, -1)
+	resp, err := app.Test(req, -1)
+	assert.NoError(t, err)
+	assert.Equal(t, 200, resp.StatusCode)
 	cookie := rr.Header().Get("Set-Cookie")
 
 	// Get session (should be 404 because session is not persisted between requests in this test setup)
 	getReq := httptest.NewRequest(http.MethodGet, "/get", nil)
 	getReq.Header.Set("Cookie", cookie)
-	getResp, _ := app.Test(getReq, -1)
+	getResp, err := app.Test(getReq, -1)
+	assert.NoError(t, err)
 	assert.Equal(t, 404, getResp.StatusCode)
 
 	// Clear session (should not error)
