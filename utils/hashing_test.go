@@ -1,52 +1,34 @@
 package utils
 
 import (
-	"net/http"
 	"net/http/httptest"
+	"reservio/config"
 	"testing"
-
-	"github.com/gofiber/fiber/v2"
-	"github.com/stretchr/testify/assert"
 )
 
 func TestSetSessionAndClearSession(t *testing.T) {
-	app := fiber.New()
-	app.Get("/set", func(c *fiber.Ctx) error {
-		SetSession(c, 42)
-		return c.SendStatus(200)
-	})
-	app.Get("/get", func(c *fiber.Ctx) error {
-		sess, _ := Store.Get(c)
-		userID := sess.Get("user_id")
-		if userID == nil {
-			return c.SendStatus(404)
-		}
-		return c.SendString(userID.(string))
-	})
-	app.Get("/clear", func(c *fiber.Ctx) error {
-		ClearSession(c)
-		return c.SendStatus(200)
-	})
+	r := httptest.NewRequest("GET", "/", nil)
+	w := httptest.NewRecorder()
+	SetSession(w, r, 42)
 
-	// Set session
-	req := httptest.NewRequest(http.MethodGet, "/set", nil)
-	rr := httptest.NewRecorder()
-	resp, err := app.Test(req, -1)
-	assert.NoError(t, err)
-	assert.Equal(t, 200, resp.StatusCode)
-	cookie := rr.Header().Get("Set-Cookie")
+	req := httptest.NewRequest("GET", "/", nil)
+	for _, cookie := range w.Result().Cookies() {
+		req.AddCookie(cookie)
+	}
+	w2 := httptest.NewRecorder()
+	session, _ := config.Store.Get(req, "session")
+	userID, _ := session.Values["user_id"].(string)
+	if userID != "42" {
+		t.Errorf("expected user_id 42, got %v", userID)
+	}
 
-	// Get session (should be 404 because session is not persisted between requests in this test setup)
-	getReq := httptest.NewRequest(http.MethodGet, "/get", nil)
-	getReq.Header.Set("Cookie", cookie)
-	getResp, err := app.Test(getReq, -1)
-	assert.NoError(t, err)
-	assert.Equal(t, 404, getResp.StatusCode)
-
-	// Clear session (should not error)
-	clearReq := httptest.NewRequest(http.MethodGet, "/clear", nil)
-	clearReq.Header.Set("Cookie", cookie)
-	clearResp, err := app.Test(clearReq, -1)
-	assert.NoError(t, err)
-	assert.Equal(t, 200, clearResp.StatusCode)
+	ClearSession(w2, req)
+	req2 := httptest.NewRequest("GET", "/", nil)
+	for _, cookie := range w2.Result().Cookies() {
+		req2.AddCookie(cookie)
+	}
+	session2, _ := config.Store.Get(req2, "session")
+	if session2.Values["user_id"] != nil {
+		t.Errorf("expected user_id to be cleared, got %v", session2.Values["user_id"])
+	}
 }

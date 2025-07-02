@@ -1,53 +1,63 @@
 package routes
 
 import (
+	"net/http"
 	"reservio/controllers"
 	"reservio/middleware"
 
-	"github.com/gofiber/fiber/v2"
+	"github.com/gorilla/mux"
 )
 
-func Setup(app *fiber.App) {
-	api := app.Group("/api", middleware.CSRFMiddleware())
+// SetupRouter returns a *mux.Router with all routes and middleware configured
+func SetupRouter() *mux.Router {
+	r := mux.NewRouter()
 
-	auth := api.Group("/auth")
-	auth.Post("/register", controllers.Register)
-	auth.Post("/login", controllers.Login)
-	auth.Post("/logout", controllers.Logout)
-	auth.Post("/request-reset", controllers.RequestPasswordReset)
-	auth.Post("/reset-password", controllers.ResetPassword)
+	api := r.PathPrefix("/api").Subrouter()
+	api.Use(middleware.CSRFMiddleware)
 
-	parent := api.Group("/parent", middleware.Protected())
-	parent.Post("/children", controllers.AddChild)
-	parent.Get("/children", controllers.GetChildren)
-	parent.Post("/reserve", controllers.MakeReservation)
-	parent.Get("/reservations", controllers.GetMyReservations)
-	parent.Delete("/reservations/:id", controllers.CancelReservation)
-	parent.Put("/children/:id", controllers.EditChild)
-	parent.Delete("/children/:id", controllers.DeleteChild)
+	auth := api.PathPrefix("/auth").Subrouter()
+	auth.HandleFunc("/register", controllers.Register).Methods("POST")
+	auth.HandleFunc("/login", controllers.Login).Methods("POST")
+	auth.HandleFunc("/logout", controllers.Logout).Methods("POST")
+	auth.HandleFunc("/request-reset", controllers.RequestPasswordReset).Methods("POST")
+	auth.HandleFunc("/reset-password", controllers.ResetPassword).Methods("POST")
 
-	// --- Admin routes: all require Protected + AdminOnly middleware ---
-	admin := api.Group("/admin", middleware.Protected(), middleware.AdminOnly())
-	admin.Post("/slots", controllers.CreateSlot)
-	admin.Put("/approve/:id", controllers.ApproveReservation)
-	admin.Put("/reject/:id", controllers.RejectReservation)
-	admin.Get("/reservations", controllers.GetReservationsByStatus)
-	admin.Get("/users", controllers.ListUsers)
-	admin.Delete("/users/:id", controllers.DeleteUser)
-	admin.Put("/users/:id/role", controllers.UpdateUserRole)
-	// --- End admin routes ---
+	parent := api.PathPrefix("/parent").Subrouter()
+	parent.Use(middleware.Protected)
+	parent.HandleFunc("/children", controllers.AddChild).Methods("POST")
+	parent.HandleFunc("/children", controllers.GetChildren).Methods("GET")
+	parent.HandleFunc("/reserve", controllers.MakeReservation).Methods("POST")
+	parent.HandleFunc("/reservations", controllers.GetMyReservations).Methods("GET")
+	parent.HandleFunc("/reservations/{id}", controllers.CancelReservation).Methods("DELETE")
+	parent.HandleFunc("/children/{id}", controllers.EditChild).Methods("PUT")
+	parent.HandleFunc("/children/{id}", controllers.DeleteChild).Methods("DELETE")
 
-	user := api.Group("/user", middleware.Protected())
-	user.Get("/profile", controllers.GetProfile)
-	user.Put("/profile", controllers.UpdateProfile)
+	// Admin routes: all require Protected + AdminOnly middleware
+	admin := api.PathPrefix("/admin").Subrouter()
+	admin.Use(middleware.Protected)
+	admin.Use(middleware.AdminOnly)
+	admin.HandleFunc("/slots", controllers.CreateSlot).Methods("POST")
+	admin.HandleFunc("/approve/{id}", controllers.ApproveReservation).Methods("PUT")
+	admin.HandleFunc("/reject/{id}", controllers.RejectReservation).Methods("PUT")
+	admin.HandleFunc("/reservations", controllers.GetReservationsByStatus).Methods("GET")
+	admin.HandleFunc("/users", controllers.ListUsers).Methods("GET")
+	admin.HandleFunc("/users/{id}", controllers.DeleteUser).Methods("DELETE")
+	admin.HandleFunc("/users/{id}/role", controllers.UpdateUserRole).Methods("PUT")
 
-	api.Get("/slots", controllers.ListSlots)
+	user := api.PathPrefix("/user").Subrouter()
+	user.Use(middleware.Protected)
+	user.HandleFunc("/profile", controllers.GetProfile).Methods("GET")
+	user.HandleFunc("/profile", controllers.UpdateProfile).Methods("PUT")
 
-	// Add health and version endpoints at root
-	app.Get("/health", func(c *fiber.Ctx) error {
-		return c.SendString("OK")
-	})
-	app.Get("/version", func(c *fiber.Ctx) error {
-		return c.JSON(fiber.Map{"version": "1.0.0", "commit": "dev"})
-	})
+	api.HandleFunc("/slots", controllers.ListSlots).Methods("GET")
+
+	r.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
+		w.Write([]byte("OK"))
+	}).Methods("GET")
+	r.HandleFunc("/version", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.Write([]byte(`{"version": "1.0.0", "commit": "dev"}`))
+	}).Methods("GET")
+
+	return r
 }

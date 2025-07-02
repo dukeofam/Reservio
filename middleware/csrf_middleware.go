@@ -4,11 +4,10 @@ import (
 	"crypto/rand"
 	"encoding/base64"
 	"log"
+	"net/http"
 	"os"
-	"reservio/utils"
+	"reservio/config"
 	"time"
-
-	"github.com/gofiber/fiber/v2"
 )
 
 func generateCSRFToken() string {
@@ -19,49 +18,51 @@ func generateCSRFToken() string {
 	return base64.StdEncoding.EncodeToString(b)
 }
 
-func CSRFMiddleware() fiber.Handler {
-	return func(c *fiber.Ctx) error {
-		sess, _ := utils.Store.Get(c)
-		token := sess.Get("csrf_token")
-		expiry := sess.Get("csrf_token_expiry")
+func CSRFMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		session, _ := config.Store.Get(r, "session")
+		token, _ := session.Values["csrf_token"].(string)
+		expiry, _ := session.Values["csrf_token_expiry"].(int64)
 		now := time.Now().Unix()
-		if token == nil || expiry == nil || now > expiry.(int64) {
+		if token == "" || expiry == 0 || now > expiry {
 			token = generateCSRFToken()
-			sess.Set("csrf_token", token)
-			sess.Set("csrf_token_expiry", now+7200) // 2 hours
-			if err := sess.Save(); err != nil {
-				log.Printf("[CSRF] sess.Save error: %v", err)
-			}
+			session.Values["csrf_token"] = token
+			session.Values["csrf_token_expiry"] = now + 7200 // 2 hours
+			session.Save(r, w)
 		}
 
-		if os.Getenv("TEST_MODE") == "1" && c.Method() == fiber.MethodGet {
-			c.Set("X-CSRF-Token", token.(string))
+		if os.Getenv("TEST_MODE") == "1" && r.Method == http.MethodGet {
+			w.Header().Set("X-CSRF-Token", token)
 		}
 
-		if c.Method() == fiber.MethodPost || c.Method() == fiber.MethodPut || c.Method() == fiber.MethodDelete {
-			requestToken := c.Get("X-CSRF-Token")
+		if r.Method == http.MethodPost || r.Method == http.MethodPut || r.Method == http.MethodDelete {
+			requestToken := r.Header.Get("X-CSRF-Token")
 			if requestToken == "" {
-				requestToken = c.FormValue("csrf_token")
+				err := r.ParseForm()
+				if err == nil {
+					requestToken = r.FormValue("csrf_token")
+				}
 			}
 			if requestToken != token {
 				log.Printf("[CSRF] Invalid CSRF token: got=%s expected=%s", requestToken, token)
-				return c.Status(403).JSON(fiber.Map{"error": "Invalid CSRF token"})
+				w.Header().Set("Content-Type", "application/json")
+				w.WriteHeader(http.StatusForbidden)
+				w.Write([]byte(`{"error": "Invalid CSRF token"}`))
+				return
 			}
 		}
-		c.Locals("csrf_token", token)
-		return c.Next()
-	}
+		next.ServeHTTP(w, r)
+	})
 }
 
-func RegenerateCSRFToken(c *fiber.Ctx) error {
-	sess, _ := utils.Store.Get(c)
+func RegenerateCSRFToken(w http.ResponseWriter, r *http.Request) error {
+	session, _ := config.Store.Get(r, "session")
 	token := generateCSRFToken()
-	sess.Set("csrf_token", token)
-	sess.Set("csrf_token_expiry", time.Now().Unix()+7200) // 2 hours
-	if err := sess.Save(); err != nil {
+	session.Values["csrf_token"] = token
+	session.Values["csrf_token_expiry"] = time.Now().Unix() + 7200 // 2 hours
+	if err := session.Save(r, w); err != nil {
 		log.Printf("[CSRF] sess.Save error: %v", err)
 		return err
 	}
-	c.Locals("csrf_token", token)
 	return nil
 }

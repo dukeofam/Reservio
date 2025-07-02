@@ -3,101 +3,163 @@ package controllers
 import (
 	"bytes"
 	"encoding/json"
-	"net/http/httptest"
+	"net/http"
 	"strconv"
 	"testing"
-
-	"github.com/stretchr/testify/assert"
 )
 
+func TestChildEndpoints(t *testing.T) {
+	server := setupTestApp()
+	defer server.Close()
+	csrfToken, cookie := getCSRFTokenAndCookie(server)
+	registerAndLogin(server, "childparent+1@example.com", "testpassword123", csrfToken, cookie)
+
+	// Add child
+	addPayload := map[string]interface{}{"name": "TestChild", "age": 5}
+	addBody, _ := json.Marshal(addPayload)
+	addReq, _ := http.NewRequest("POST", server.URL+"/api/parent/children", bytes.NewReader(addBody))
+	addReq.Header.Set("Content-Type", "application/json")
+	addReq.Header.Set("X-CSRF-Token", csrfToken)
+	addReq.Header.Set("Cookie", cookie)
+	addResp, err := http.DefaultClient.Do(addReq)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if addResp.StatusCode != 200 {
+		t.Fatalf("expected 200, got %d", addResp.StatusCode)
+	}
+	var child map[string]interface{}
+	if err := json.NewDecoder(addResp.Body).Decode(&child); err != nil {
+		t.Fatal(err)
+	}
+	if child["name"] != "TestChild" {
+		t.Fatalf("expected name 'TestChild', got %v", child["name"])
+	}
+}
+
 func TestAddGetEditDeleteChild(t *testing.T) {
-	app := setupTestApp()
-	csrfToken, cookie := getCSRFTokenAndCookie(app)
-	registerAndLogin(app, "childparent+1@example.com", "testpassword123", csrfToken, cookie)
+	server := setupTestApp()
+	defer server.Close()
+	csrfToken, cookie := getCSRFTokenAndCookie(server)
+	registerAndLogin(server, "childparent+1@example.com", "testpassword123", csrfToken, cookie)
 
 	// Add child
 	childPayload := map[string]interface{}{"name": "Alice", "age": 5}
 	childBody, _ := json.Marshal(childPayload)
-	addReq := httptest.NewRequest("POST", "/api/parent/children", bytes.NewReader(childBody))
+	addReq, _ := http.NewRequest("POST", server.URL+"/api/parent/children", bytes.NewReader(childBody))
 	addReq.Header.Set("Content-Type", "application/json")
 	addReq.Header.Set("X-CSRF-Token", csrfToken)
 	addReq.Header.Set("Cookie", cookie)
-	addResp, err := app.Test(addReq, -1)
-	assert.NoError(t, err)
-	assert.Equal(t, 200, addResp.StatusCode)
+	addResp, err := http.DefaultClient.Do(addReq)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if addResp.StatusCode != 200 {
+		t.Fatalf("expected 200, got %d", addResp.StatusCode)
+	}
 	var added map[string]interface{}
 	if err := json.NewDecoder(addResp.Body).Decode(&added); err != nil {
 		t.Fatal(err)
 	}
-	assert.Equal(t, "Alice", added["Name"])
+	if added["Name"] != "Alice" {
+		t.Fatalf("expected name 'Alice', got %v", added["Name"])
+	}
 
 	// Get children
-	getReq := httptest.NewRequest("GET", "/api/parent/children", nil)
+	getReq, _ := http.NewRequest("GET", server.URL+"/api/parent/children", nil)
 	getReq.Header.Set("Cookie", cookie)
-	getResp, err := app.Test(getReq, -1)
-	assert.NoError(t, err)
-	assert.Equal(t, 200, getResp.StatusCode)
+	getResp, err := http.DefaultClient.Do(getReq)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if getResp.StatusCode != 200 {
+		t.Fatalf("expected 200, got %d", getResp.StatusCode)
+	}
 	var children []map[string]interface{}
 	if err := json.NewDecoder(getResp.Body).Decode(&children); err != nil {
 		t.Fatal(err)
 	}
-	assert.True(t, len(children) > 0)
+	if len(children) == 0 {
+		t.Fatalf("expected at least one child")
+	}
 
 	// Edit child
 	childID := int(added["ID"].(float64))
 	editPayload := map[string]interface{}{"name": "AliceUpdated", "age": 6}
 	editBody, _ := json.Marshal(editPayload)
-	editReq := httptest.NewRequest("PUT", "/api/parent/children/"+strconv.Itoa(childID), bytes.NewReader(editBody))
+	editReq, _ := http.NewRequest("PUT", server.URL+"/api/parent/children/"+strconv.Itoa(childID), bytes.NewReader(editBody))
 	editReq.Header.Set("Content-Type", "application/json")
 	editReq.Header.Set("X-CSRF-Token", csrfToken)
 	editReq.Header.Set("Cookie", cookie)
-	editResp, err := app.Test(editReq, -1)
-	assert.NoError(t, err)
-	assert.Equal(t, 200, editResp.StatusCode)
+	editResp, err := http.DefaultClient.Do(editReq)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if editResp.StatusCode != 200 {
+		t.Fatalf("expected 200, got %d", editResp.StatusCode)
+	}
 	var edited map[string]interface{}
 	if err := json.NewDecoder(editResp.Body).Decode(&edited); err != nil {
 		t.Fatal(err)
 	}
-	assert.Equal(t, "AliceUpdated", edited["Name"])
+	if edited["Name"] != "AliceUpdated" {
+		t.Fatalf("expected name 'AliceUpdated', got %v", edited["Name"])
+	}
 
 	// Delete child
-	delReq := httptest.NewRequest("DELETE", "/api/parent/children/"+strconv.Itoa(childID), nil)
+	delReq, _ := http.NewRequest("DELETE", server.URL+"/api/parent/children/"+strconv.Itoa(childID), nil)
 	delReq.Header.Set("X-CSRF-Token", csrfToken)
 	delReq.Header.Set("Cookie", cookie)
-	delResp, err := app.Test(delReq, -1)
-	assert.NoError(t, err)
-	assert.Equal(t, 200, delResp.StatusCode)
+	delResp, err := http.DefaultClient.Do(delReq)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if delResp.StatusCode != 200 {
+		t.Fatalf("expected 200, got %d", delResp.StatusCode)
+	}
 	var delResult map[string]interface{}
 	if err := json.NewDecoder(delResp.Body).Decode(&delResult); err != nil {
 		t.Fatal(err)
 	}
-	assert.Equal(t, "Child deleted", delResult["message"])
+	if delResult["message"] != "Child deleted" {
+		t.Fatalf("expected 'Child deleted', got %v", delResult["message"])
+	}
 }
 
 func TestAddChild_InvalidData(t *testing.T) {
-	app := setupTestApp()
-	csrfToken, cookie := getCSRFTokenAndCookie(app)
-	registerAndLogin(app, "childparent+2@example.com", "testpassword123", csrfToken, cookie)
+	server := setupTestApp()
+	defer server.Close()
+	csrfToken, cookie := getCSRFTokenAndCookie(server)
+	registerAndLogin(server, "childparent+2@example.com", "testpassword123", csrfToken, cookie)
 	// Missing name
 	childPayload := map[string]interface{}{"age": 5}
 	childBody, _ := json.Marshal(childPayload)
-	addReq := httptest.NewRequest("POST", "/api/parent/children", bytes.NewReader(childBody))
+	addReq, _ := http.NewRequest("POST", server.URL+"/api/parent/children", bytes.NewReader(childBody))
 	addReq.Header.Set("Content-Type", "application/json")
 	addReq.Header.Set("X-CSRF-Token", csrfToken)
 	addReq.Header.Set("Cookie", cookie)
-	addResp, err := app.Test(addReq, -1)
-	assert.NoError(t, err)
-	assert.Equal(t, 400, addResp.StatusCode)
+	addResp, err := http.DefaultClient.Do(addReq)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if addResp.StatusCode != 400 {
+		t.Fatalf("expected 400, got %d", addResp.StatusCode)
+	}
 }
 
 func TestDeleteChild_NotFound(t *testing.T) {
-	app := setupTestApp()
-	csrfToken, cookie := getCSRFTokenAndCookie(app)
-	registerAndLogin(app, "childparent+3@example.com", "testpassword123", csrfToken, cookie)
-	delReq := httptest.NewRequest("DELETE", "/api/parent/children/99999", nil)
+	server := setupTestApp()
+	defer server.Close()
+	csrfToken, cookie := getCSRFTokenAndCookie(server)
+	registerAndLogin(server, "childparent+3@example.com", "testpassword123", csrfToken, cookie)
+	delReq, _ := http.NewRequest("DELETE", server.URL+"/api/parent/children/99999", nil)
 	delReq.Header.Set("X-CSRF-Token", csrfToken)
 	delReq.Header.Set("Cookie", cookie)
-	delResp, err := app.Test(delReq, -1)
-	assert.NoError(t, err)
-	assert.Equal(t, 404, delResp.StatusCode)
+	delResp, err := http.DefaultClient.Do(delReq)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if delResp.StatusCode != 404 {
+		t.Fatalf("expected 404, got %d", delResp.StatusCode)
+	}
 }

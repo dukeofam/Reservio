@@ -1,63 +1,79 @@
 package controllers
 
 import (
+	"encoding/json"
+	"net/http"
 	"reservio/config"
 	"reservio/models"
-	"reservio/utils"
 
-	"github.com/gofiber/fiber/v2"
+	"github.com/gorilla/mux"
 )
 
-func MakeReservation(c *fiber.Ctx) error {
+func MakeReservation(w http.ResponseWriter, r *http.Request) {
 	type Req struct {
 		ChildID uint `json:"child_id"`
 		SlotID  uint `json:"slot_id"`
 	}
-
 	var body Req
-	if err := c.BodyParser(&body); err != nil {
-		return utils.RespondWithError(c, 400, "Invalid input")
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(map[string]string{"error": "Invalid input"})
+		return
 	}
 	if body.ChildID == 0 || body.SlotID == 0 {
-		return utils.RespondWithError(c, 400, "child_id and slot_id are required")
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(map[string]string{"error": "child_id and slot_id are required"})
+		return
 	}
-
 	reservation := models.Reservation{
 		ChildID: body.ChildID,
 		SlotID:  body.SlotID,
 		Status:  "pending",
 	}
-
 	if err := config.DB.Create(&reservation).Error; err != nil {
-		return utils.RespondWithError(c, 500, "Reservation failed")
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(map[string]string{"error": "Reservation failed"})
+		return
 	}
-
-	return c.JSON(fiber.Map{"message": "Reservation requested"})
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]string{"message": "Reservation requested"})
 }
 
-func GetReservations(c *fiber.Ctx) error {
+func GetReservations(w http.ResponseWriter, r *http.Request) {
 	var reservations []models.Reservation
 	config.DB.Find(&reservations)
-	return c.JSON(reservations)
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(reservations)
 }
 
-func GetMyReservations(c *fiber.Ctx) error {
-	userID := c.Locals("user_id").(uint)
+func GetMyReservations(w http.ResponseWriter, r *http.Request) {
+	userID, ok := r.Context().Value("user_id").(uint)
+	if !ok {
+		w.WriteHeader(http.StatusUnauthorized)
+		json.NewEncoder(w).Encode(map[string]string{"error": "Unauthorized"})
+		return
+	}
 	var reservations []models.Reservation
 	config.DB.Joins("JOIN children ON children.id = reservations.child_id").Where("children.parent_id = ?", userID).Find(&reservations)
-	return c.JSON(reservations)
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(reservations)
 }
 
-func CancelReservation(c *fiber.Ctx) error {
-	id := c.Params("id")
+func CancelReservation(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	id := vars["id"]
 	if err := config.DB.Delete(&models.Reservation{}, id).Error; err != nil {
-		return utils.RespondWithError(c, 500, "Failed to cancel reservation")
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(map[string]string{"error": "Failed to cancel reservation"})
+		return
 	}
-	return c.JSON(fiber.Map{"message": "Reservation cancelled"})
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]string{"message": "Reservation cancelled"})
 }
 
-func ListSlots(c *fiber.Ctx) error {
+func ListSlots(w http.ResponseWriter, r *http.Request) {
 	var slots []models.Slot
 	config.DB.Find(&slots)
-	return c.JSON(slots)
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(slots)
 }

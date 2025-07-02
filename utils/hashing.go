@@ -1,40 +1,17 @@
 package utils
 
 import (
+	"encoding/json"
 	"log"
-	"os"
+	"net/http"
 	"strconv"
 	"sync"
 	"time"
 
-	"github.com/gofiber/fiber/v2"
-	"github.com/gofiber/fiber/v2/middleware/session"
-	"github.com/gofiber/storage/redis/v3"
+	"reservio/config"
+
+	"github.com/gorilla/sessions"
 )
-
-var Store *session.Store
-
-func init() {
-	redisURL := os.Getenv("REDIS_URL")
-	if redisURL != "" {
-		Store = session.New(session.Config{
-			Storage: redis.New(redis.Config{
-				URL: redisURL,
-			}),
-			CookieHTTPOnly: true,
-			CookieSecure:   true,
-			CookieSameSite: "Strict",
-			Expiration:     time.Hour, // 1 hour
-		})
-	} else {
-		Store = session.New(session.Config{
-			CookieHTTPOnly: true,
-			CookieSecure:   true,
-			CookieSameSite: "Strict",
-			Expiration:     time.Hour, // 1 hour
-		})
-	}
-}
 
 // Brute-force login attempt tracker (in-memory, can be replaced with Redis)
 type LoginAttempt struct {
@@ -69,32 +46,35 @@ func GetLoginAttempt(email string) LoginAttempt {
 	return loginAttempts.m[email]
 }
 
-func SetSession(c *fiber.Ctx, userID uint) {
-	sess, _ := Store.Get(c)
-	sess.Set("user_id", strconv.Itoa(int(userID)))
-	if err := sess.Save(); err != nil {
-		log.Printf("[SetSession] sess.Save error: %v", err)
+// Session helpers for gorilla/sessions
+func SetSession(w http.ResponseWriter, r *http.Request, userID uint) {
+	session, _ := config.Store.Get(r, "session")
+	session.Values["user_id"] = strconv.Itoa(int(userID))
+	session.Options = &sessions.Options{
+		Path:     "/",
+		MaxAge:   3600,
+		HttpOnly: true,
+		Secure:   true,
+		SameSite: http.SameSiteStrictMode,
 	}
+	session.Save(r, w)
 }
 
-func ClearSession(c *fiber.Ctx) {
-	sess, _ := Store.Get(c)
-	if err := sess.Destroy(); err != nil {
-		log.Printf("[ClearSession] sess.Destroy error: %v", err)
-	}
+func ClearSession(w http.ResponseWriter, r *http.Request) {
+	session, _ := config.Store.Get(r, "session")
+	session.Options.MaxAge = -1
+	session.Save(r, w)
 }
 
-// InvalidateAllUserSessions destroys the current session and rotates the session ID.
-// NOTE: To fully invalidate all sessions for a user across devices, use a distributed session store (e.g., Redis)
-// and track sessions by user ID. This implementation only affects the current session.
-func InvalidateAllUserSessions(c *fiber.Ctx) {
-	sess, _ := Store.Get(c)
-	_ = sess.Destroy()
-	_ = sess.Regenerate()
+// Invalidate current session (global logout requires tracking all user sessions)
+func InvalidateAllUserSessions(w http.ResponseWriter, r *http.Request) {
+	ClearSession(w, r)
 }
 
 // RespondWithError sends a JSON error response and logs the error
-func RespondWithError(c *fiber.Ctx, code int, message string) error {
+func RespondWithError(w http.ResponseWriter, code int, message string) {
 	log.Printf("[ERROR] %s", message)
-	return c.Status(code).JSON(fiber.Map{"error": message})
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(code)
+	json.NewEncoder(w).Encode(map[string]string{"error": message})
 }
