@@ -39,8 +39,8 @@ func TestChildEndpoints(t *testing.T) {
 	if err := json.NewDecoder(addResp.Body).Decode(&child); err != nil {
 		t.Fatal(err)
 	}
-	if child["name"] != "TestChild" {
-		t.Fatalf("expected name 'TestChild', got %v", child["name"])
+	if child["Name"] != "TestChild" {
+		t.Fatalf("expected name 'TestChild', got %v", child["Name"])
 	}
 }
 
