@@ -25,9 +25,12 @@ func TestMakeListCancelReservation(t *testing.T) {
 	addReq.Header.Set("Content-Type", "application/json")
 	addReq.Header.Set("X-CSRF-Token", csrfToken)
 	addReq.Header.Set("Cookie", cookie)
-	addResp, _ := app.Test(addReq, -1)
+	addResp, err := app.Test(addReq, -1)
+	assert.NoError(t, err)
 	var addedChild map[string]interface{}
-	json.NewDecoder(addResp.Body).Decode(&addedChild)
+	if err := json.NewDecoder(addResp.Body).Decode(&addedChild); err != nil {
+		t.Fatal(err)
+	}
 	childID := int(addedChild["ID"].(float64))
 
 	// Insert slot directly into DB
@@ -37,9 +40,12 @@ func TestMakeListCancelReservation(t *testing.T) {
 	// Get slot ID
 	slotsReq := httptest.NewRequest("GET", "/api/slots", nil)
 	slotsReq.Header.Set("Cookie", cookie)
-	slotsResp, _ := app.Test(slotsReq, -1)
+	slotsResp, err := app.Test(slotsReq, -1)
+	assert.NoError(t, err)
 	var slots []map[string]interface{}
-	json.NewDecoder(slotsResp.Body).Decode(&slots)
+	if err := json.NewDecoder(slotsResp.Body).Decode(&slots); err != nil {
+		t.Fatal(err)
+	}
 	if len(slots) == 0 {
 		t.Fatalf("No slots found. Make sure a slot is created before making a reservation.")
 	}
@@ -146,7 +152,9 @@ func TestSlotListingAndEdgeCases(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, 200, slotsResp.StatusCode)
 	var slots []map[string]interface{}
-	json.NewDecoder(slotsResp.Body).Decode(&slots)
+	if err := json.NewDecoder(slotsResp.Body).Decode(&slots); err != nil {
+		t.Fatal(err)
+	}
 	assert.True(t, len(slots) > 0)
 
 	// List slots as unauthenticated user

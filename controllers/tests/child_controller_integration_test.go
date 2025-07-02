@@ -68,7 +68,9 @@ func TestAddGetEditDeleteChild(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, 200, delResp.StatusCode)
 	var delResult map[string]interface{}
-	json.NewDecoder(delResp.Body).Decode(&delResult)
+	if err := json.NewDecoder(delResp.Body).Decode(&delResult); err != nil {
+		t.Fatal(err)
+	}
 	assert.Equal(t, "Child deleted", delResult["message"])
 }
 
