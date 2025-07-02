@@ -33,8 +33,8 @@ jobs:
       DATABASE_URL: postgres://reservio:reservio@localhost:5432/reservio_test?sslmode=disable
       TEST_MODE: 1
       REDIS_ADDR: localhost:6379
-      SESSION_SECRET: test-secret-key
-      REDIS_PASSWORD: ""
+      SESSION_SECRET: "testsecret"
+      REDIS_PASSWORD: "testpassword"
 
     steps:
     - uses: actions/checkout@v4
