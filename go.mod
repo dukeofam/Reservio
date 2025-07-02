@@ -8,7 +8,7 @@ require (
 	github.com/boj/redistore v1.4.1
 	github.com/gorilla/mux v1.8.1
 	github.com/gorilla/sessions v1.4.0
-	github.com/joho/godotenv v1.4.0
+	github.com/joho/godotenv v1.5.1
 	github.com/stretchr/testify v1.10.0
 	golang.org/x/crypto v0.37.0
 	gorm.io/driver/postgres v1.5.0

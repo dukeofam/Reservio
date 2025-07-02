@@ -17,6 +17,10 @@ import (
 var DB *gorm.DB
 var Store *redistore.RediStore
 
+// This file assumes github.com/boj/redistore v1.4.1 is used. The NewRediStoreWithDB signature is:
+// func NewRediStoreWithDB(size int, network, address, password string, db int, key []byte) (*RediStore, error)
+// If you upgrade redistore, update this code accordingly.
+
 func init() {
 	_ = godotenv.Load()
 }
@@ -44,6 +48,8 @@ func ConnectDatabase() {
 	DB = database
 }
 
+// NOTE: This code assumes github.com/boj/redistore v1.4.1 is used.
+// NewRediStoreWithDB signature: func NewRediStoreWithDB(size int, network, address, password string, db int, key []byte) (*RediStore, error)
 func InitSessionStore() {
 	var err error
 
@@ -61,9 +67,9 @@ func InitSessionStore() {
 	var store *redistore.RediStore
 
 	if redisPassword == "" {
-		store, err = redistore.NewRediStoreWithDB(10, "tcp", redisAddr, "", "0", storeKey)
+		store, err = redistore.NewRediStoreWithDB(10, "tcp", redisAddr, "", "", "0", []byte(storeKey))
 	} else {
-		store, err = redistore.NewRediStoreWithDB(10, "tcp", redisAddr, redisPassword, "0", storeKey)
+		store, err = redistore.NewRediStoreWithDB(10, "tcp", redisAddr, "", redisPassword, "0", []byte(storeKey))
 	}
 
 	if err != nil {
