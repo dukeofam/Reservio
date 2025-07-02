@@ -118,11 +118,13 @@ func GetProfile(w http.ResponseWriter, r *http.Request) {
 		utils.RespondWithError(w, 401, "Unauthorized")
 		return
 	}
+	log.Printf("[GetProfile] userID from context: %d", userID)
 	var user models.User
 	if err := config.DB.First(&user, userID).Error; err != nil {
 		utils.RespondWithError(w, 404, "User not found")
 		return
 	}
+	log.Printf("[GetProfile] user: email=%s, role=%s", user.Email, user.Role)
 	user.Password = ""
 	w.Header().Set("Content-Type", "application/json")
 	_ = json.NewEncoder(w).Encode(user)
