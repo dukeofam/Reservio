@@ -62,7 +62,9 @@ func TestMakeListCancelReservation(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, 200, resResp.StatusCode)
 	var resResult map[string]interface{}
-	json.NewDecoder(resResp.Body).Decode(&resResult)
+	if err := json.NewDecoder(resResp.Body).Decode(&resResult); err != nil {
+		t.Fatal(err)
+	}
 	assert.Equal(t, "Reservation requested", resResult["message"])
 
 	// List reservations
@@ -72,7 +74,9 @@ func TestMakeListCancelReservation(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, 200, listResp.StatusCode)
 	var reservations []map[string]interface{}
-	json.NewDecoder(listResp.Body).Decode(&reservations)
+	if err := json.NewDecoder(listResp.Body).Decode(&reservations); err != nil {
+		t.Fatal(err)
+	}
 	assert.True(t, len(reservations) > 0)
 	reservationID := int(reservations[0]["ID"].(float64))
 
@@ -84,7 +88,9 @@ func TestMakeListCancelReservation(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, 200, cancelResp.StatusCode)
 	var cancelResult map[string]interface{}
-	json.NewDecoder(cancelResp.Body).Decode(&cancelResult)
+	if err := json.NewDecoder(cancelResp.Body).Decode(&cancelResult); err != nil {
+		t.Fatal(err)
+	}
 	assert.Equal(t, "Reservation cancelled", cancelResult["message"])
 }
 
