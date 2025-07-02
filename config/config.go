@@ -46,29 +46,34 @@ func ConnectDatabase() {
 
 func InitSessionStore() {
 	var err error
+
 	redisAddr := os.Getenv("REDIS_ADDR")
 	if redisAddr == "" {
 		redisAddr = "localhost:6379"
 	}
+
 	storeKey := os.Getenv("SESSION_SECRET")
 	if storeKey == "" {
 		log.Fatal("SESSION_SECRET must be set")
 	}
 
-	// Get Redis password, but only use it if non-empty
 	redisPassword := os.Getenv("REDIS_PASSWORD")
+	var store *redistore.RediStore
+
 	if redisPassword == "" {
-		Store, err = redistore.NewRediStore(10, "tcp", redisAddr, "", storeKey)
+		store, err = redistore.NewRediStoreWithDB(10, "tcp", redisAddr, "", "0", storeKey)
 	} else {
-		Store, err = redistore.NewRediStore(10, "tcp", redisAddr, redisPassword, storeKey)
+		store, err = redistore.NewRediStoreWithDB(10, "tcp", redisAddr, redisPassword, "0", storeKey)
 	}
 
 	if err != nil {
 		log.Fatalf("Failed to connect to Redis session store: %v", err)
 	}
 
-	Store.SetMaxAge(3600)
-	Store.Options.HttpOnly = true
-	Store.Options.Secure = true
-	Store.Options.SameSite = http.SameSiteStrictMode
+	store.SetMaxAge(3600)
+	store.Options.HttpOnly = true
+	store.Options.Secure = true
+	store.Options.SameSite = http.SameSiteStrictMode
+
+	Store = store
 }
