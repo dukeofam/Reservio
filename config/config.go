@@ -46,7 +46,7 @@ func ConnectDatabase() {
 
 func InitSessionStore() {
 	var err error
-	Store, err = redistore.NewRediStore(10, "tcp", "localhost:6379", "", os.Getenv("SESSION_SECRET"))
+	Store, err = redistore.NewRediStore(10, "tcp", "REDIS_URL", "", os.Getenv("REDIS_PASSWORD"))
 	if err != nil {
 		log.Fatalf("Failed to connect to Redis session store: %v", err)
 	}
