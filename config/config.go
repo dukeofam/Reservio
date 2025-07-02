@@ -2,8 +2,10 @@ package config
 
 import (
 	"log"
+	"net/http"
 	"os"
 
+	"github.com/boj/redistore"
 	"github.com/joho/godotenv"
 
 	"gorm.io/driver/postgres"
@@ -13,6 +15,7 @@ import (
 )
 
 var DB *gorm.DB
+var Store *redistore.RediStore
 
 func init() {
 	_ = godotenv.Load()
@@ -39,4 +42,16 @@ func ConnectDatabase() {
 		log.Fatal("AutoMigrate failed:", err)
 	}
 	DB = database
+}
+
+func InitSessionStore() {
+	var err error
+	Store, err = redistore.NewRediStore(10, "tcp", "localhost:6379", "", os.Getenv("SESSION_SECRET"))
+	if err != nil {
+		log.Fatalf("Failed to connect to Redis session store: %v", err)
+	}
+	Store.SetMaxAge(3600) // seconds
+	Store.Options.HttpOnly = true
+	Store.Options.Secure = true
+	Store.Options.SameSite = http.SameSiteStrictMode
 }

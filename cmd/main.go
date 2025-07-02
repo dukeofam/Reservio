@@ -22,6 +22,8 @@ func main() {
 
 	config.ConnectDatabase()
 
+	config.InitSessionStore()
+
 	app := fiber.New(fiber.Config{
 		ErrorHandler: func(c *fiber.Ctx, err error) error {
 			code := fiber.StatusInternalServerError
