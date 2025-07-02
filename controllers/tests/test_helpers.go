@@ -93,11 +93,20 @@ func createChild(server *httptest.Server, csrfToken, cookie, name, birthdate str
 		panic(err)
 	}
 	defer childResp.Body.Close()
+	if childResp.StatusCode != 200 {
+		var bodyBytes bytes.Buffer
+		_, _ = bodyBytes.ReadFrom(childResp.Body)
+		panic(fmt.Sprintf("createChild: expected 200, got %d, body: %s", childResp.StatusCode, bodyBytes.String()))
+	}
 	var childResult map[string]interface{}
 	if err := json.NewDecoder(childResp.Body).Decode(&childResult); err != nil {
 		panic(err)
 	}
-	return int(childResult["ID"].(float64))
+	idVal, ok := childResult["ID"]
+	if !ok || idVal == nil {
+		panic("createChild: expected child ID in response, got: " + fmt.Sprintf("%v", childResult))
+	}
+	return int(idVal.(float64))
 }
 
 func createReservation(server *httptest.Server, csrfToken, cookie string, slotID, childID int) int {
