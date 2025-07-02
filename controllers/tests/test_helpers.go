@@ -50,10 +50,16 @@ func registerAndLogin(server *httptest.Server, email, password, csrfToken, cooki
 	if cookie != "" {
 		regReq.Header.Set("Cookie", cookie)
 	}
-	if _, err := client.Do(regReq); err != nil {
+	regResp, err := client.Do(regReq)
+	if err != nil {
 		panic(err)
 	}
-	return csrfToken, cookie
+	defer regResp.Body.Close()
+	newCookie := regResp.Header.Get("Set-Cookie")
+	if newCookie == "" {
+		newCookie = cookie
+	}
+	return csrfToken, newCookie
 }
 
 func createSlot(server *httptest.Server, csrfToken, cookie, date string, capacity int) int {

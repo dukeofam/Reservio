@@ -10,7 +10,7 @@ func TestReservationEndpoints(t *testing.T) {
 	server := setupTestApp()
 	defer server.Close()
 	csrfToken, cookie := getCSRFTokenAndCookie(server)
-	registerAndLogin(server, "resparent+1@example.com", "testpassword123", csrfToken, cookie)
+	csrfToken, cookie = registerAndLogin(server, "resparent+1@example.com", "testpassword123", csrfToken, cookie)
 
 	// Set user as admin in DB
 	config.DB.Model(&models.User{}).Where("email = ?", "resparent+1@example.com").Update("role", "admin")
