@@ -20,16 +20,20 @@ const UserIDKey ContextKey = "user_id"
 func Protected(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		session, _ := config.Store.Get(r, "session")
+		log.Printf("[Protected] session.Values: %#v", session.Values)
 		idStr, ok := session.Values["user_id"].(string)
 		if !ok || idStr == "" {
+			log.Printf("[Protected] No user_id in session: %#v", session.Values)
 			http.Error(w, `{"error": "Not logged in"}`, http.StatusUnauthorized)
 			return
 		}
 		id, err := strconv.Atoi(idStr)
 		if err != nil {
+			log.Printf("[Protected] Invalid user_id in session: %v", idStr)
 			http.Error(w, `{"error": "Invalid user ID"}`, http.StatusUnauthorized)
 			return
 		}
+		log.Printf("[Protected] Authenticated user_id: %d", id)
 		ctx := context.WithValue(r.Context(), UserIDKey, uint(id))
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
