@@ -14,7 +14,7 @@ func TestChildEndpoints(t *testing.T) {
 	server := setupTestApp()
 	defer server.Close()
 	csrfToken, cookie := getCSRFTokenAndCookie(server)
-	csrfToken, cookie = registerAndLogin(server, "childparent+1@example.com", "testpassword123", csrfToken, cookie)
+	_, cookie = registerAndLogin(server, "childparent+1@example.com", "testpassword123", csrfToken, cookie)
 
 	// Ensure user is parent in DB
 	config.DB.Model(&models.User{}).Where("email = ?", "childparent+1@example.com").Update("role", "parent")
@@ -46,7 +46,7 @@ func TestAddGetEditDeleteChild(t *testing.T) {
 	server := setupTestApp()
 	defer server.Close()
 	csrfToken, cookie := getCSRFTokenAndCookie(server)
-	csrfToken, cookie = registerAndLogin(server, "childparent+1@example.com", "testpassword123", csrfToken, cookie)
+	_, cookie = registerAndLogin(server, "childparent+1@example.com", "testpassword123", csrfToken, cookie)
 
 	// Ensure user is parent in DB
 	config.DB.Model(&models.User{}).Where("email = ?", "childparent+1@example.com").Update("role", "parent")
@@ -138,7 +138,7 @@ func TestAddChild_InvalidData(t *testing.T) {
 	server := setupTestApp()
 	defer server.Close()
 	csrfToken, cookie := getCSRFTokenAndCookie(server)
-	csrfToken, cookie = registerAndLogin(server, "childparent+2@example.com", "testpassword123", csrfToken, cookie)
+	_, cookie = registerAndLogin(server, "childparent+2@example.com", "testpassword123", csrfToken, cookie)
 
 	// Ensure user is parent in DB
 	config.DB.Model(&models.User{}).Where("email = ?", "childparent+2@example.com").Update("role", "parent")
@@ -163,7 +163,7 @@ func TestDeleteChild_NotFound(t *testing.T) {
 	server := setupTestApp()
 	defer server.Close()
 	csrfToken, cookie := getCSRFTokenAndCookie(server)
-	csrfToken, cookie = registerAndLogin(server, "childparent+3@example.com", "testpassword123", csrfToken, cookie)
+	_, cookie = registerAndLogin(server, "childparent+3@example.com", "testpassword123", csrfToken, cookie)
 
 	// Ensure user is parent in DB
 	config.DB.Model(&models.User{}).Where("email = ?", "childparent+3@example.com").Update("role", "parent")

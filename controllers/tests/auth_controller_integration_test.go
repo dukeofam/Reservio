@@ -122,7 +122,7 @@ func TestGetProfile(t *testing.T) {
 	server := setupTestApp()
 	defer server.Close()
 	csrfToken, cookie := getCSRFTokenAndCookie(server)
-	csrfToken, cookie = registerAndLogin(server, "profileuser@example.com", "testpassword123", csrfToken, cookie)
+	_, cookie = registerAndLogin(server, "profileuser@example.com", "testpassword123", csrfToken, cookie)
 
 	getReq, _ := http.NewRequest("GET", server.URL+"/api/user/profile", nil)
 	getReq.Header.Set("Cookie", cookie)
