@@ -45,7 +45,9 @@ func TestLogin_Success(t *testing.T) {
 	if cookie != "" {
 		regReq.Header.Set("Cookie", cookie)
 	}
-	app.Test(regReq, -1)
+	if _, err := app.Test(regReq, -1); err != nil {
+		t.Fatal(err)
+	}
 	// Now login
 	loginBody, _ := json.Marshal(payload)
 	req := httptest.NewRequest("POST", "/api/auth/login", bytes.NewReader(loginBody))
@@ -58,7 +60,9 @@ func TestLogin_Success(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, 200, resp.StatusCode)
 	var result map[string]interface{}
-	json.NewDecoder(resp.Body).Decode(&result)
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		t.Fatal(err)
+	}
 	assert.Equal(t, "Logged in", result["message"])
 }
 
@@ -77,7 +81,9 @@ func TestLogin_Failure(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, 401, resp.StatusCode)
 	var result map[string]interface{}
-	json.NewDecoder(resp.Body).Decode(&result)
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		t.Fatal(err)
+	}
 	assert.Equal(t, "Invalid credentials", result["error"])
 }
 
@@ -96,7 +102,9 @@ func TestRegister_InvalidEmail(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, 400, resp.StatusCode)
 	var result map[string]interface{}
-	json.NewDecoder(resp.Body).Decode(&result)
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		t.Fatal(err)
+	}
 	assert.Equal(t, "Invalid email format", result["error"])
 }
 
