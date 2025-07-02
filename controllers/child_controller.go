@@ -17,24 +17,24 @@ func AddChild(w http.ResponseWriter, r *http.Request) {
 	var body ChildRequest
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(map[string]string{"error": "Invalid input"})
+		_ = json.NewEncoder(w).Encode(map[string]string{"error": "Invalid input"})
 		return
 	}
 	if body.Name == "" {
 		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(map[string]string{"error": "Name is required"})
+		_ = json.NewEncoder(w).Encode(map[string]string{"error": "Name is required"})
 		return
 	}
 	userID, ok := r.Context().Value("user_id").(uint)
 	if !ok {
 		w.WriteHeader(http.StatusUnauthorized)
-		json.NewEncoder(w).Encode(map[string]string{"error": "Unauthorized"})
+		_ = json.NewEncoder(w).Encode(map[string]string{"error": "Unauthorized"})
 		return
 	}
 	child := models.Child{Name: body.Name, Age: body.Age, ParentID: userID}
 	if err := config.DB.Create(&child).Error; err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
-		json.NewEncoder(w).Encode(map[string]string{"error": "Failed to create child"})
+		_ = json.NewEncoder(w).Encode(map[string]string{"error": "Failed to create child"})
 		return
 	}
 	w.Header().Set("Content-Type", "application/json")
@@ -45,7 +45,7 @@ func GetChildren(w http.ResponseWriter, r *http.Request) {
 	userID, ok := r.Context().Value("user_id").(uint)
 	if !ok {
 		w.WriteHeader(http.StatusUnauthorized)
-		json.NewEncoder(w).Encode(map[string]string{"error": "Unauthorized"})
+		_ = json.NewEncoder(w).Encode(map[string]string{"error": "Unauthorized"})
 		return
 	}
 	var children []models.Child
@@ -58,7 +58,7 @@ func EditChild(w http.ResponseWriter, r *http.Request) {
 	userID, ok := r.Context().Value("user_id").(uint)
 	if !ok {
 		w.WriteHeader(http.StatusUnauthorized)
-		json.NewEncoder(w).Encode(map[string]string{"error": "Unauthorized"})
+		_ = json.NewEncoder(w).Encode(map[string]string{"error": "Unauthorized"})
 		return
 	}
 	vars := mux.Vars(r)
@@ -66,7 +66,7 @@ func EditChild(w http.ResponseWriter, r *http.Request) {
 	var child models.Child
 	if err := config.DB.Where("parent_id = ? AND id = ?", userID, id).First(&child).Error; err != nil {
 		w.WriteHeader(http.StatusNotFound)
-		json.NewEncoder(w).Encode(map[string]string{"error": "Child not found"})
+		_ = json.NewEncoder(w).Encode(map[string]string{"error": "Child not found"})
 		return
 	}
 	type Req struct {
@@ -76,7 +76,7 @@ func EditChild(w http.ResponseWriter, r *http.Request) {
 	var body Req
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(map[string]string{"error": "Invalid input"})
+		_ = json.NewEncoder(w).Encode(map[string]string{"error": "Invalid input"})
 		return
 	}
 	if body.Name != "" {
@@ -87,7 +87,7 @@ func EditChild(w http.ResponseWriter, r *http.Request) {
 	}
 	if err := config.DB.Save(&child).Error; err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
-		json.NewEncoder(w).Encode(map[string]string{"error": "Failed to update child"})
+		_ = json.NewEncoder(w).Encode(map[string]string{"error": "Failed to update child"})
 		return
 	}
 	w.Header().Set("Content-Type", "application/json")
@@ -98,7 +98,7 @@ func DeleteChild(w http.ResponseWriter, r *http.Request) {
 	userID, ok := r.Context().Value("user_id").(uint)
 	if !ok {
 		w.WriteHeader(http.StatusUnauthorized)
-		json.NewEncoder(w).Encode(map[string]string{"error": "Unauthorized"})
+		_ = json.NewEncoder(w).Encode(map[string]string{"error": "Unauthorized"})
 		return
 	}
 	vars := mux.Vars(r)
@@ -106,12 +106,12 @@ func DeleteChild(w http.ResponseWriter, r *http.Request) {
 	result := config.DB.Where("parent_id = ? AND id = ?", userID, id).Delete(&models.Child{})
 	if result.Error != nil {
 		w.WriteHeader(http.StatusInternalServerError)
-		json.NewEncoder(w).Encode(map[string]string{"error": "Failed to delete child"})
+		_ = json.NewEncoder(w).Encode(map[string]string{"error": "Failed to delete child"})
 		return
 	}
 	if result.RowsAffected == 0 {
 		w.WriteHeader(http.StatusNotFound)
-		json.NewEncoder(w).Encode(map[string]string{"error": "Child not found"})
+		_ = json.NewEncoder(w).Encode(map[string]string{"error": "Child not found"})
 		return
 	}
 	w.Header().Set("Content-Type", "application/json")

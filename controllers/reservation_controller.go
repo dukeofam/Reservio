@@ -17,12 +17,12 @@ func MakeReservation(w http.ResponseWriter, r *http.Request) {
 	var body Req
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(map[string]string{"error": "Invalid input"})
+		_ = json.NewEncoder(w).Encode(map[string]string{"error": "Invalid input"})
 		return
 	}
 	if body.ChildID == 0 || body.SlotID == 0 {
 		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(map[string]string{"error": "child_id and slot_id are required"})
+		_ = json.NewEncoder(w).Encode(map[string]string{"error": "child_id and slot_id are required"})
 		return
 	}
 	reservation := models.Reservation{
@@ -32,7 +32,7 @@ func MakeReservation(w http.ResponseWriter, r *http.Request) {
 	}
 	if err := config.DB.Create(&reservation).Error; err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
-		json.NewEncoder(w).Encode(map[string]string{"error": "Reservation failed"})
+		_ = json.NewEncoder(w).Encode(map[string]string{"error": "Reservation failed"})
 		return
 	}
 	w.Header().Set("Content-Type", "application/json")
@@ -50,7 +50,7 @@ func GetMyReservations(w http.ResponseWriter, r *http.Request) {
 	userID, ok := r.Context().Value("user_id").(uint)
 	if !ok {
 		w.WriteHeader(http.StatusUnauthorized)
-		json.NewEncoder(w).Encode(map[string]string{"error": "Unauthorized"})
+		_ = json.NewEncoder(w).Encode(map[string]string{"error": "Unauthorized"})
 		return
 	}
 	var reservations []models.Reservation
@@ -64,7 +64,7 @@ func CancelReservation(w http.ResponseWriter, r *http.Request) {
 	id := vars["id"]
 	if err := config.DB.Delete(&models.Reservation{}, id).Error; err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
-		json.NewEncoder(w).Encode(map[string]string{"error": "Failed to cancel reservation"})
+		_ = json.NewEncoder(w).Encode(map[string]string{"error": "Failed to cancel reservation"})
 		return
 	}
 	w.Header().Set("Content-Type", "application/json")

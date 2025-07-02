@@ -57,7 +57,7 @@ func Register(w http.ResponseWriter, r *http.Request) {
 
 	utils.SetSession(w, r, user.ID)
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]interface{}{"message": "User registered", "user": user.Email})
+	_ = json.NewEncoder(w).Encode(map[string]interface{}{"message": "User registered", "user": user.Email})
 }
 
 func Login(w http.ResponseWriter, r *http.Request) {
@@ -103,13 +103,13 @@ func Login(w http.ResponseWriter, r *http.Request) {
 	utils.SetSession(w, r, user.ID)
 	// CSRF token rotation can be handled if needed
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]interface{}{"message": "Logged in", "user": user.Email})
+	_ = json.NewEncoder(w).Encode(map[string]interface{}{"message": "Logged in", "user": user.Email})
 }
 
 func Logout(w http.ResponseWriter, r *http.Request) {
 	utils.ClearSession(w, r)
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]interface{}{"message": "Logged out"})
+	_ = json.NewEncoder(w).Encode(map[string]interface{}{"message": "Logged out"})
 }
 
 func GetProfile(w http.ResponseWriter, r *http.Request) {
@@ -125,7 +125,7 @@ func GetProfile(w http.ResponseWriter, r *http.Request) {
 	}
 	user.Password = ""
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(user)
+	_ = json.NewEncoder(w).Encode(user)
 }
 
 func UpdateProfile(w http.ResponseWriter, r *http.Request) {
@@ -171,7 +171,7 @@ func UpdateProfile(w http.ResponseWriter, r *http.Request) {
 		utils.InvalidateAllUserSessions(w, r)
 	}
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]interface{}{"message": "Profile updated"})
+	_ = json.NewEncoder(w).Encode(map[string]interface{}{"message": "Profile updated"})
 }
 
 func RequestPasswordReset(w http.ResponseWriter, r *http.Request) {
@@ -201,7 +201,7 @@ func RequestPasswordReset(w http.ResponseWriter, r *http.Request) {
 		log.Printf("[RequestPasswordReset] Failed to send email: %v", err)
 	}
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]interface{}{"message": "Password reset email sent"})
+	_ = json.NewEncoder(w).Encode(map[string]interface{}{"message": "Password reset email sent"})
 }
 
 func ResetPassword(w http.ResponseWriter, r *http.Request) {
@@ -241,5 +241,5 @@ func ResetPassword(w http.ResponseWriter, r *http.Request) {
 	resetTokens.Unlock()
 	utils.InvalidateAllUserSessions(w, r)
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]interface{}{"message": "Password reset successful"})
+	_ = json.NewEncoder(w).Encode(map[string]interface{}{"message": "Password reset successful"})
 }
