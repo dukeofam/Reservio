@@ -138,7 +138,7 @@ func TestUserProfileEndpoints(t *testing.T) {
 	if err := json.NewDecoder(getResp.Body).Decode(&profile); err != nil {
 		t.Fatal(err)
 	}
-	assert.Equal(t, "profileuser@example.com", profile["Email"])
+	assert.Equal(t, "profileuser@example.com", profile["email"])
 
 	// Update profile
 	updatePayload := map[string]interface{}{"email": "profileuser2@example.com", "password": "newpassword123"}

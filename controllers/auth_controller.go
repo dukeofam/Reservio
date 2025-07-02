@@ -9,6 +9,7 @@ import (
 	"encoding/base64"
 	"log"
 	"sync"
+	"time"
 
 	"reservio/middleware"
 
@@ -72,16 +73,25 @@ func Login(c *fiber.Ctx) error {
 		return utils.RespondWithError(c, 400, "Password is required")
 	}
 
+	// Brute-force protection
+	la := utils.GetLoginAttempt(body.Email)
+	if la.Count >= 5 && time.Now().Unix()-la.LastFailed < 300 {
+		return utils.RespondWithError(c, 429, "Too many failed login attempts. Please try again in 5 minutes.")
+	}
+
 	var user models.User
 	if err := config.DB.Where("email = ?", body.Email).First(&user).Error; err != nil {
+		utils.IncrementLoginAttempt(body.Email)
 		log.Printf("[Login] Invalid credentials for email: %s", body.Email)
 		return utils.RespondWithError(c, 401, "Invalid credentials")
 	}
 
 	if err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(body.Password)); err != nil {
+		utils.IncrementLoginAttempt(body.Email)
 		return utils.RespondWithError(c, 401, "Invalid credentials")
 	}
 
+	utils.ResetLoginAttempt(body.Email)
 	utils.SetSession(c, user.ID)
 	_ = middleware.RegenerateCSRFToken(c)
 	return c.JSON(fiber.Map{"message": "Logged in", "user": user.Email})
