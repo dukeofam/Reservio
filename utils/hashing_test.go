@@ -8,6 +8,7 @@ import (
 )
 
 func TestMain(m *testing.M) {
+	os.Setenv("TEST_MODE", "1")
 	config.InitSessionStore()
 	os.Exit(m.Run())
 }

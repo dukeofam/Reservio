@@ -6,11 +6,19 @@ import (
 	"reservio/middleware"
 
 	"github.com/gorilla/mux"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
 // SetupRouter returns a *mux.Router with all routes and middleware configured
 func SetupRouter() *mux.Router {
 	r := mux.NewRouter()
+
+	// Global middlewares
+	r.Use(middleware.LoggingMiddleware)
+	r.Use(middleware.MetricsMiddleware)
+	// SecurityHeadersMiddleware will be added in a later stage
+
+	r.Handle("/metrics", promhttp.Handler()).Methods("GET")
 
 	api := r.PathPrefix("/api").Subrouter()
 	api.Use(middleware.CSRFMiddleware)

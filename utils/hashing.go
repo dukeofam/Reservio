@@ -3,6 +3,7 @@ package utils
 import (
 	"log"
 	"net/http"
+	"os"
 	"strconv"
 	"sync"
 	"time"
@@ -53,16 +54,21 @@ func SetSession(w http.ResponseWriter, r *http.Request, userID uint) {
 		Path:     "/",
 		MaxAge:   3600,
 		HttpOnly: true,
-		Secure:   true,
+		Secure:   os.Getenv("TEST_MODE") != "1",
 		SameSite: http.SameSiteStrictMode,
 	}
-	_ = session.Save(r, w)
+	if err := session.Save(r, w); err != nil {
+		log.Printf("[SetSession] session.Save error: %v", err)
+	}
 }
 
 func ClearSession(w http.ResponseWriter, r *http.Request) {
 	session, _ := config.Store.Get(r, "session")
+	delete(session.Values, "user_id")
 	session.Options.MaxAge = -1
-	_ = session.Save(r, w)
+	if err := session.Save(r, w); err != nil {
+		log.Printf("[ClearSession] session.Save error: %v", err)
+	}
 }
 
 // Invalidate current session (global logout requires tracking all user sessions)

@@ -6,6 +6,7 @@ import (
 	"os"
 
 	"github.com/boj/redistore"
+	"github.com/gorilla/sessions"
 	"github.com/joho/godotenv"
 
 	"gorm.io/driver/postgres"
@@ -15,7 +16,7 @@ import (
 )
 
 var DB *gorm.DB
-var Store *redistore.RediStore
+var Store sessions.Store
 
 // This file assumes github.com/boj/redistore v1.4.1 is used. The NewRediStoreWithDB signature is:
 // func NewRediStoreWithDB(size int, network, address, password string, db int, key []byte) (*RediStore, error)
@@ -52,6 +53,18 @@ func ConnectDatabase() {
 // NewRediStoreWithDB signature: func NewRediStoreWithDB(size int, network, address, password string, db int, key []byte) (*RediStore, error)
 func InitSessionStore() {
 	var err error
+
+	// In test mode, use in-memory cookie store to avoid Redis dependency
+	if os.Getenv("TEST_MODE") == "1" {
+		authKey := []byte("test-secret-key-32-bytes-length----")
+		cookieStore := sessions.NewCookieStore(authKey)
+		cookieStore.MaxAge(3600)
+		cookieStore.Options.HttpOnly = true
+		cookieStore.Options.Secure = false
+		cookieStore.Options.SameSite = http.SameSiteStrictMode
+		Store = cookieStore
+		return
+	}
 
 	redisAddr := os.Getenv("REDIS_ADDR")
 	if redisAddr == "" {

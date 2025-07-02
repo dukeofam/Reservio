@@ -44,22 +44,45 @@ func registerAndLogin(server *httptest.Server, email, password, csrfToken, cooki
 	client := &http.Client{}
 	payload := map[string]string{"email": email, "password": password}
 	body, _ := json.Marshal(payload)
+	// Register
 	regReq, _ := http.NewRequest("POST", server.URL+"/api/auth/register", bytes.NewReader(body))
 	regReq.Header.Set("Content-Type", "application/json")
 	regReq.Header.Set("X-CSRF-Token", csrfToken)
-	if cookie != "" {
-		regReq.Header.Set("Cookie", cookie)
-	}
 	regResp, err := client.Do(regReq)
 	if err != nil {
 		panic(err)
 	}
-	defer regResp.Body.Close()
-	newCookie := regResp.Header.Get("Set-Cookie")
-	if newCookie == "" {
-		newCookie = cookie
+	// capture session cookie from registration response (may override existing)
+	for _, c := range regResp.Cookies() {
+		if c.Name == "session" {
+			cookie = c.Name + "=" + c.Value
+		}
 	}
-	return csrfToken, newCookie
+	regResp.Body.Close()
+	// Explicit login to refresh session and ensure user_id present
+	loginReq, _ := http.NewRequest("POST", server.URL+"/api/auth/login", bytes.NewReader(body))
+	loginReq.Header.Set("Content-Type", "application/json")
+	loginReq.Header.Set("X-CSRF-Token", csrfToken)
+	loginReq.Header.Set("Cookie", cookie)
+	loginResp, err := client.Do(loginReq)
+	if err != nil {
+		panic(err)
+	}
+	if loginResp.StatusCode != 200 {
+		var bodyBytes bytes.Buffer
+		_, _ = bodyBytes.ReadFrom(loginResp.Body)
+		panic(fmt.Sprintf("login failed: status %d, body %s", loginResp.StatusCode, bodyBytes.String()))
+	}
+	if t := loginResp.Header.Get("X-CSRF-Token"); t != "" {
+		csrfToken = t
+	}
+	for _, c := range loginResp.Cookies() {
+		if c.Name == "session" {
+			cookie = c.Name + "=" + c.Value
+		}
+	}
+	loginResp.Body.Close()
+	return csrfToken, cookie
 }
 
 func createSlot(server *httptest.Server, csrfToken, cookie, date string, capacity int) int {

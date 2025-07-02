@@ -5,10 +5,11 @@ import (
 	"net/http"
 	"os"
 
-	"github.com/joho/godotenv"
-
 	"reservio/config"
 	"reservio/routes"
+
+	"github.com/joho/godotenv"
+	"go.uber.org/zap"
 )
 
 func main() {
@@ -19,6 +20,10 @@ func main() {
 
 	config.ConnectDatabase()
 	config.InitSessionStore()
+
+	logger, _ := zap.NewProduction()
+	zap.ReplaceGlobals(logger)
+	defer logger.Sync()
 
 	router := routes.SetupRouter()
 
