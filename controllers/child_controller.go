@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"reservio/config"
+	"reservio/middleware"
 	"reservio/models"
 
 	"github.com/gorilla/mux"
@@ -25,7 +26,7 @@ func AddChild(w http.ResponseWriter, r *http.Request) {
 		_ = json.NewEncoder(w).Encode(map[string]string{"error": "Name is required"})
 		return
 	}
-	userID, ok := r.Context().Value("user_id").(uint)
+	userID, ok := r.Context().Value(middleware.UserIDKey).(uint)
 	if !ok {
 		w.WriteHeader(http.StatusUnauthorized)
 		_ = json.NewEncoder(w).Encode(map[string]string{"error": "Unauthorized"})
@@ -42,7 +43,7 @@ func AddChild(w http.ResponseWriter, r *http.Request) {
 }
 
 func GetChildren(w http.ResponseWriter, r *http.Request) {
-	userID, ok := r.Context().Value("user_id").(uint)
+	userID, ok := r.Context().Value(middleware.UserIDKey).(uint)
 	if !ok {
 		w.WriteHeader(http.StatusUnauthorized)
 		_ = json.NewEncoder(w).Encode(map[string]string{"error": "Unauthorized"})
@@ -55,7 +56,7 @@ func GetChildren(w http.ResponseWriter, r *http.Request) {
 }
 
 func EditChild(w http.ResponseWriter, r *http.Request) {
-	userID, ok := r.Context().Value("user_id").(uint)
+	userID, ok := r.Context().Value(middleware.UserIDKey).(uint)
 	if !ok {
 		w.WriteHeader(http.StatusUnauthorized)
 		_ = json.NewEncoder(w).Encode(map[string]string{"error": "Unauthorized"})
@@ -95,7 +96,7 @@ func EditChild(w http.ResponseWriter, r *http.Request) {
 }
 
 func DeleteChild(w http.ResponseWriter, r *http.Request) {
-	userID, ok := r.Context().Value("user_id").(uint)
+	userID, ok := r.Context().Value(middleware.UserIDKey).(uint)
 	if !ok {
 		w.WriteHeader(http.StatusUnauthorized)
 		_ = json.NewEncoder(w).Encode(map[string]string{"error": "Unauthorized"})

@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"reservio/config"
+	"reservio/middleware"
 	"reservio/models"
 
 	"github.com/gorilla/mux"
@@ -47,7 +48,7 @@ func GetReservations(w http.ResponseWriter, r *http.Request) {
 }
 
 func GetMyReservations(w http.ResponseWriter, r *http.Request) {
-	userID, ok := r.Context().Value("user_id").(uint)
+	userID, ok := r.Context().Value(middleware.UserIDKey).(uint)
 	if !ok {
 		w.WriteHeader(http.StatusUnauthorized)
 		_ = json.NewEncoder(w).Encode(map[string]string{"error": "Unauthorized"})
