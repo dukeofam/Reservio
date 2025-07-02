@@ -24,6 +24,20 @@ func main() {
 
 	app := fiber.New()
 	app.Use(logger.New())
+	// Add secure headers
+	app.Use(func(c *fiber.Ctx) error {
+		c.Set("Strict-Transport-Security", "max-age=63072000; includeSubDomains")
+		c.Set("X-Frame-Options", "DENY")
+		c.Set("X-Content-Type-Options", "nosniff")
+		c.Set("Referrer-Policy", "no-referrer")
+		c.Set("X-XSS-Protection", "1; mode=block")
+		return c.Next()
+	})
+	// Add compression
+	app.Use(func(c *fiber.Ctx) error {
+		c.Response().Header.Add("Content-Encoding", "gzip")
+		return c.Next()
+	})
 	app.Use(limiter.New(limiter.Config{
 		Max:        10,
 		Expiration: 1 * time.Minute,
