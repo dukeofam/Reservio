@@ -16,10 +16,14 @@ var Store = session.New(session.Config{
 func SetSession(c *fiber.Ctx, userID uint) {
 	sess, _ := Store.Get(c)
 	sess.Set("user_id", strconv.Itoa(int(userID)))
-	sess.Save()
+	if err := sess.Save(); err != nil {
+		// Optionally log or handle error
+	}
 }
 
 func ClearSession(c *fiber.Ctx) {
 	sess, _ := Store.Get(c)
-	sess.Destroy()
+	if err := sess.Destroy(); err != nil {
+		// Optionally log or handle error
+	}
 }

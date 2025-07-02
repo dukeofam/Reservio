@@ -28,7 +28,10 @@ func cleanupTestDB(db *gorm.DB) {
 
 func getCSRFTokenAndCookie(app *fiber.App) (string, string) {
 	req := httptest.NewRequest("GET", "/api/slots", nil)
-	resp, _ := app.Test(req, -1)
+	resp, err := app.Test(req, -1)
+	if err != nil {
+		panic(err)
+	}
 	cookie := resp.Header.Get("Set-Cookie")
 	csrfToken := resp.Header.Get("X-CSRF-Token")
 	return csrfToken, cookie
@@ -43,7 +46,9 @@ func registerAndLogin(app *fiber.App, email, password, csrfToken, cookie string)
 	if cookie != "" {
 		regReq.Header.Set("Cookie", cookie)
 	}
-	app.Test(regReq, -1)
+	if _, err := app.Test(regReq, -1); err != nil {
+		panic(err)
+	}
 	return csrfToken, cookie
 }
 
@@ -54,9 +59,14 @@ func createSlot(app *fiber.App, csrfToken, cookie, date string, capacity int) in
 	slotReq.Header.Set("Content-Type", "application/json")
 	slotReq.Header.Set("X-CSRF-Token", csrfToken)
 	slotReq.Header.Set("Cookie", cookie)
-	slotResp, _ := app.Test(slotReq, -1)
+	slotResp, err := app.Test(slotReq, -1)
+	if err != nil {
+		panic(err)
+	}
 	var slotResult map[string]interface{}
-	json.NewDecoder(slotResp.Body).Decode(&slotResult)
+	if err := json.NewDecoder(slotResp.Body).Decode(&slotResult); err != nil {
+		panic(err)
+	}
 	return int(slotResult["ID"].(float64))
 }
 
@@ -67,9 +77,14 @@ func createChild(app *fiber.App, csrfToken, cookie, name, birthdate string) int 
 	childReq.Header.Set("Content-Type", "application/json")
 	childReq.Header.Set("X-CSRF-Token", csrfToken)
 	childReq.Header.Set("Cookie", cookie)
-	childResp, _ := app.Test(childReq, -1)
+	childResp, err := app.Test(childReq, -1)
+	if err != nil {
+		panic(err)
+	}
 	var childResult map[string]interface{}
-	json.NewDecoder(childResp.Body).Decode(&childResult)
+	if err := json.NewDecoder(childResp.Body).Decode(&childResult); err != nil {
+		panic(err)
+	}
 	return int(childResult["ID"].(float64))
 }
 
@@ -80,13 +95,20 @@ func createReservation(app *fiber.App, csrfToken, cookie string, slotID, childID
 	resReq.Header.Set("Content-Type", "application/json")
 	resReq.Header.Set("X-CSRF-Token", csrfToken)
 	resReq.Header.Set("Cookie", cookie)
-	app.Test(resReq, -1)
+	if _, err := app.Test(resReq, -1); err != nil {
+		panic(err)
+	}
 	// Fetch reservations and return the latest one for this child and slot
 	listReq := httptest.NewRequest("GET", "/api/parent/reservations", nil)
 	listReq.Header.Set("Cookie", cookie)
-	listResp, _ := app.Test(listReq, -1)
+	listResp, err := app.Test(listReq, -1)
+	if err != nil {
+		panic(err)
+	}
 	var reservations []map[string]interface{}
-	json.NewDecoder(listResp.Body).Decode(&reservations)
+	if err := json.NewDecoder(listResp.Body).Decode(&reservations); err != nil {
+		panic(err)
+	}
 	for _, r := range reservations {
 		if int(r["ChildID"].(float64)) == childID && int(r["SlotID"].(float64)) == slotID {
 			return int(r["ID"].(float64))

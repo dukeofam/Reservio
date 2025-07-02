@@ -21,8 +21,7 @@ var resetTokens = struct {
 
 func generateResetToken() string {
 	b := make([]byte, 32)
-	_, err := rand.Read(b)
-	if err != nil {
+	if _, err := rand.Read(b); err != nil {
 		return ""
 	}
 	return base64.URLEncoding.EncodeToString(b)
@@ -157,7 +156,9 @@ func RequestPasswordReset(c *fiber.Ctx) error {
 	resetTokens.m[token] = user.ID
 	resetTokens.Unlock()
 	resetLink := "http://localhost:3000/reset-password?token=" + token
-	utils.SendMail(user.Email, "Password Reset", "Reset your password: "+resetLink)
+	if err := utils.SendMail(user.Email, "Password Reset", "Reset your password: "+resetLink); err != nil {
+		log.Printf("[RequestPasswordReset] Failed to send email: %v", err)
+	}
 	return c.JSON(fiber.Map{"message": "Password reset email sent"})
 }
 
@@ -186,7 +187,9 @@ func ResetPassword(c *fiber.Ctx) error {
 	}
 	hash, _ := bcrypt.GenerateFromPassword([]byte(body.Password), 14)
 	user.Password = string(hash)
-	config.DB.Save(&user)
+	if err := config.DB.Save(&user).Error; err != nil {
+		return c.Status(500).JSON(fiber.Map{"error": "Failed to reset password"})
+	}
 	resetTokens.Lock()
 	delete(resetTokens.m, body.Token)
 	resetTokens.Unlock()

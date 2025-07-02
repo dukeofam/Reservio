@@ -11,7 +11,9 @@ import (
 
 func generateCSRFToken() string {
 	b := make([]byte, 32)
-	rand.Read(b)
+	if _, err := rand.Read(b); err != nil {
+		return ""
+	}
 	return base64.StdEncoding.EncodeToString(b)
 }
 
@@ -22,7 +24,9 @@ func CSRFMiddleware() fiber.Handler {
 		if token == nil {
 			token = generateCSRFToken()
 			sess.Set("csrf_token", token)
-			sess.Save()
+			if err := sess.Save(); err != nil {
+				// Optionally log or handle error
+			}
 		}
 
 		if os.Getenv("TEST_MODE") == "1" && c.Method() == fiber.MethodGet {
