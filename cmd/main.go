@@ -23,7 +23,11 @@ func main() {
 
 	logger, _ := zap.NewProduction()
 	zap.ReplaceGlobals(logger)
-	defer logger.Sync()
+	defer func() {
+		if err := logger.Sync(); err != nil {
+			log.Printf("zap sync error: %v", err)
+		}
+	}()
 
 	router := routes.SetupRouter()
 
