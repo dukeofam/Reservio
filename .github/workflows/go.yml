@@ -12,7 +12,7 @@ jobs:
 
     services:
       postgres:
-        image: postgres:15
+        image: postgres:latest
         env:
           POSTGRES_USER: reservio
           POSTGRES_PASSWORD: reservio
@@ -21,6 +21,13 @@ jobs:
           - 5432:5432
         options: >-
           --health-cmd="pg_isready -U reservio" --health-interval=10s --health-timeout=5s --health-retries=5
+
+      redis:
+        image: redis:latest
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd="redis-cli ping" --health-interval=10s --health-timeout=5s --health-retries=5
 
     env:
       DATABASE_URL: postgres://reservio:reservio@localhost:5432/reservio_test?sslmode=disable

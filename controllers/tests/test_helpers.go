@@ -15,7 +15,9 @@ import (
 func setupTestApp() *httptest.Server {
 	os.Setenv("DATABASE_URL", "postgres://reservio:reservio@localhost:5432/reservio_test?sslmode=disable")
 	os.Setenv("TEST_MODE", "1")
+	os.Setenv("SESSION_SECRET", "test-secret-key")
 	config.ConnectDatabase()
+	config.InitSessionStore()
 	cleanupTestDB(config.DB)
 	router := routes.SetupRouter()
 	return httptest.NewServer(router)
