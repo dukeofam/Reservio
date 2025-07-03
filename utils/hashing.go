@@ -82,7 +82,13 @@ func RespondWithError(w http.ResponseWriter, code int, message string) {
 	log.Printf("[ERROR] %s", message)
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(code)
-	jsonResp := []byte(`{"error": "` + message + `"}`)
+
+	response := map[string]interface{}{
+		"error": message,
+		"code":  ErrInvalidInput, // generic fallback; callers should prefer RespondWithValidationError for granular codes
+	}
+
+	jsonResp, _ := json.Marshal(response)
 	_, _ = w.Write(jsonResp)
 }
 

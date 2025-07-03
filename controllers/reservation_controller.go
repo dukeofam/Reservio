@@ -282,3 +282,48 @@ func ListSlots(w http.ResponseWriter, r *http.Request) {
 
 	utils.RespondWithPaginatedData(w, slotsData, page, perPage, int(total))
 }
+
+// GetSlot returns detailed information (including availability) about a single slot
+func GetSlot(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	slotIDStr := vars["id"]
+	slotID, err := utils.ParseUint(slotIDStr)
+	if err != nil {
+		utils.RespondWithValidationError(w, http.StatusBadRequest, utils.NewValidationError(utils.ErrInvalidInput, "Invalid slot ID", map[string]interface{}{
+			"slot_id": slotIDStr,
+		}))
+		return
+	}
+
+	validator := utils.NewBusinessLogicValidator()
+	// Ensure slot exists
+	if err := validator.ValidateSlotExists(slotID); err != nil {
+		if validationErr, ok := err.(utils.ValidationError); ok {
+			utils.RespondWithValidationError(w, http.StatusNotFound, validationErr)
+		} else {
+			utils.RespondWithError(w, http.StatusNotFound, "Slot not found")
+		}
+		return
+	}
+
+	var slot models.Slot
+	if err := config.DB.First(&slot, slotID).Error; err != nil {
+		utils.RespondWithValidationError(w, http.StatusNotFound, utils.NewValidationError(utils.ErrSlotNotFound, "Slot not found", map[string]interface{}{
+			"slot_id": slotID,
+		}))
+		return
+	}
+
+	availability, _ := validator.GetSlotAvailability(slotID)
+
+	response := map[string]interface{}{
+		"slot": map[string]interface{}{
+			"id":       slot.ID,
+			"date":     slot.Date,
+			"capacity": slot.Capacity,
+		},
+		"availability": availability,
+	}
+
+	utils.RespondWithSuccess(w, response)
+}

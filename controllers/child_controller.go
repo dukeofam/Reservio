@@ -240,6 +240,52 @@ func DeleteChild(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+// GetChild returns a single child belonging to the authenticated parent
+func GetChild(w http.ResponseWriter, r *http.Request) {
+	userID, ok := r.Context().Value(middleware.UserIDKey).(uint)
+	if !ok {
+		utils.RespondWithValidationError(w, http.StatusUnauthorized, utils.NewValidationError(utils.ErrUnauthorized, "Not authenticated", nil))
+		return
+	}
+
+	vars := mux.Vars(r)
+	childIDStr := vars["id"]
+	childID, err := utils.ParseUint(childIDStr)
+	if err != nil {
+		utils.RespondWithValidationError(w, http.StatusBadRequest, utils.NewValidationError(utils.ErrInvalidInput, "Invalid child ID", map[string]interface{}{
+			"child_id": childIDStr,
+		}))
+		return
+	}
+
+	// Validate ownership
+	validator := utils.NewBusinessLogicValidator()
+	if err := validator.ValidateChildOwnership(childID, userID); err != nil {
+		if validationErr, ok := err.(utils.ValidationError); ok {
+			utils.RespondWithValidationError(w, http.StatusNotFound, validationErr)
+		} else {
+			utils.RespondWithError(w, http.StatusNotFound, "Child not found")
+		}
+		return
+	}
+
+	var child models.Child
+	if err := config.DB.First(&child, childID).Error; err != nil {
+		utils.RespondWithValidationError(w, http.StatusNotFound, utils.NewValidationError(utils.ErrChildNotFound, "Child not found", map[string]interface{}{
+			"child_id": childID,
+		}))
+		return
+	}
+
+	utils.RespondWithSuccess(w, map[string]interface{}{
+		"child": map[string]interface{}{
+			"id":   child.ID,
+			"name": child.Name,
+			"age":  child.Age,
+		},
+	})
+}
+
 // Helper function to parse uint from string
 func parseUint(s string) (uint, error) {
 	var result uint

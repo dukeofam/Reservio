@@ -41,6 +41,7 @@ func SetupRouter() *mux.Router {
 	parent.Use(middleware.CSRFMiddleware)
 	parent.HandleFunc("/children", controllers.AddChild).Methods("POST")
 	parent.HandleFunc("/children", controllers.GetChildren).Methods("GET")
+	parent.HandleFunc("/children/{id}", controllers.GetChild).Methods("GET")
 	parent.HandleFunc("/reserve", controllers.MakeReservation).Methods("POST")
 	parent.HandleFunc("/reservations", controllers.GetMyReservations).Methods("GET")
 	parent.HandleFunc("/reservations/{id}", controllers.CancelReservation).Methods("DELETE")
@@ -67,6 +68,7 @@ func SetupRouter() *mux.Router {
 	user.HandleFunc("/profile", controllers.UpdateProfile).Methods("PUT")
 
 	api.HandleFunc("/slots", controllers.ListSlots).Methods("GET")
+	api.HandleFunc("/slots/{id}", controllers.GetSlot).Methods("GET")
 
 	r.HandleFunc("/version", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
