@@ -37,7 +37,9 @@ func MakeReservation(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.Header().Set("Content-Type", "application/json")
-	_ = json.NewEncoder(w).Encode(map[string]string{"message": "Reservation requested"})
+	if err := json.NewEncoder(w).Encode(map[string]string{"message": "Reservation requested"}); err != nil {
+		// Optionally log or handle the error
+	}
 }
 
 func GetReservations(w http.ResponseWriter, r *http.Request) {

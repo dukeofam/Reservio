@@ -26,7 +26,9 @@ func CreateSlot(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.Header().Set("Content-Type", "application/json")
-	_ = json.NewEncoder(w).Encode(slot)
+	if err := json.NewEncoder(w).Encode(slot); err != nil {
+		// Optionally log or handle the error
+	}
 }
 
 func ApproveReservation(w http.ResponseWriter, r *http.Request) {
@@ -45,7 +47,9 @@ func ApproveReservation(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.Header().Set("Content-Type", "application/json")
-	_ = json.NewEncoder(w).Encode(reservation)
+	if err := json.NewEncoder(w).Encode(reservation); err != nil {
+		// Optionally log or handle the error
+	}
 }
 
 func RejectReservation(w http.ResponseWriter, r *http.Request) {
@@ -64,7 +68,9 @@ func RejectReservation(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.Header().Set("Content-Type", "application/json")
-	_ = json.NewEncoder(w).Encode(reservation)
+	if err := json.NewEncoder(w).Encode(reservation); err != nil {
+		// Optionally log or handle the error
+	}
 }
 
 func GetReservationsByStatus(w http.ResponseWriter, r *http.Request) {
@@ -76,14 +82,18 @@ func GetReservationsByStatus(w http.ResponseWriter, r *http.Request) {
 		config.DB.Find(&reservations)
 	}
 	w.Header().Set("Content-Type", "application/json")
-	_ = json.NewEncoder(w).Encode(reservations)
+	if err := json.NewEncoder(w).Encode(reservations); err != nil {
+		// Optionally log or handle the error
+	}
 }
 
 func ListUsers(w http.ResponseWriter, r *http.Request) {
 	var users []models.User
 	config.DB.Find(&users)
 	w.Header().Set("Content-Type", "application/json")
-	_ = json.NewEncoder(w).Encode(users)
+	if err := json.NewEncoder(w).Encode(users); err != nil {
+		// Optionally log or handle the error
+	}
 }
 
 func DeleteUser(w http.ResponseWriter, r *http.Request) {
@@ -95,7 +105,9 @@ func DeleteUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.Header().Set("Content-Type", "application/json")
-	_ = json.NewEncoder(w).Encode(map[string]string{"message": "User deleted"})
+	if err := json.NewEncoder(w).Encode(map[string]string{"message": "User deleted"}); err != nil {
+		// Optionally log or handle the error
+	}
 }
 
 func UpdateUserRole(w http.ResponseWriter, r *http.Request) {
@@ -122,5 +134,7 @@ func UpdateUserRole(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.Header().Set("Content-Type", "application/json")
-	_ = json.NewEncoder(w).Encode(user)
+	if err := json.NewEncoder(w).Encode(user); err != nil {
+		// Optionally log or handle the error
+	}
 }

@@ -1,8 +1,8 @@
 version: '3.8'
 services:
   db:
-    image: postgres:15
-    restart: always
+    image: postgres:15-alpine
+    restart: unless-stopped
     environment:
       POSTGRES_USER: reservio
       POSTGRES_PASSWORD: reservio
@@ -11,22 +11,53 @@ services:
       - "5432:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U reservio"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    security_opt:
+      - no-new-privileges:true
   redis:
-    image: redis:7
-    restart: always
+    image: redis:7-alpine
+    restart: unless-stopped
     ports:
       - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    security_opt:
+      - no-new-privileges:true
   app:
-    build: .
+    build: 
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
     depends_on:
-      - db
-      - redis
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
     environment:
       DATABASE_URL: postgres://reservio:reservio@db:5432/reservio?sslmode=disable
-      REDIS_URL: redis://redis:6379/0
+      REDIS_ADDR: redis:6379
+      REDIS_PASSWORD: ""
+      SESSION_SECRET: ${SESSION_SECRET:-your-secret-key-change-in-production}
+      PORT: 8080
     ports:
       - "8080:8080"
-    volumes:
-      - .:/app
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    security_opt:
+      - no-new-privileges:true
+    read_only: true
+    tmpfs:
+      - /tmp
 volumes:
   pgdata: 

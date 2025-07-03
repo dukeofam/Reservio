@@ -21,6 +21,12 @@ func SetupRouter() *mux.Router {
 
 	r.Handle("/metrics", promhttp.Handler()).Methods("GET")
 
+	// Health check endpoint for Docker
+	r.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte("OK"))
+	}).Methods("GET")
+
 	api := r.PathPrefix("/api").Subrouter()
 	api.Use(middleware.CSRFMiddleware)
 
@@ -60,10 +66,6 @@ func SetupRouter() *mux.Router {
 
 	api.HandleFunc("/slots", controllers.ListSlots).Methods("GET")
 
-	r.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusOK)
-		_, _ = w.Write([]byte("OK"))
-	}).Methods("GET")
 	r.HandleFunc("/version", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)

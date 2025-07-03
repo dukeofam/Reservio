@@ -39,7 +39,9 @@ func AddChild(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.Header().Set("Content-Type", "application/json")
-	_ = json.NewEncoder(w).Encode(child)
+	if err := json.NewEncoder(w).Encode(child); err != nil {
+		// Optionally log or handle the error
+	}
 }
 
 func GetChildren(w http.ResponseWriter, r *http.Request) {
@@ -92,7 +94,9 @@ func EditChild(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.Header().Set("Content-Type", "application/json")
-	_ = json.NewEncoder(w).Encode(child)
+	if err := json.NewEncoder(w).Encode(child); err != nil {
+		// Optionally log or handle the error
+	}
 }
 
 func DeleteChild(w http.ResponseWriter, r *http.Request) {
