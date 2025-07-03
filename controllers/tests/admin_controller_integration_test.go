@@ -15,10 +15,10 @@ import (
 func TestAdminEndpoints(t *testing.T) {
 	server := setupTestApp()
 	defer server.Close()
-	csrfToken, cookie := getCSRFTokenAndCookie(server)
+	initToken, initCookie := getCSRFTokenAndCookie(server)
 	email := "adminuser@example.com"
 	password := "testpassword123"
-	csrfToken, cookie = registerAndLogin(server, email, password, csrfToken, cookie)
+	csrfToken, cookie := registerAndLogin(server, email, password, initToken, initCookie)
 
 	// Set user as admin in DB
 	config.DB.Model(&models.User{}).Where("email = ?", email).Update("role", "admin")
@@ -33,10 +33,10 @@ func TestAdminEndpoints(t *testing.T) {
 func TestAdminSlotManagement(t *testing.T) {
 	server := setupTestApp()
 	defer server.Close()
-	csrfToken, cookie := getCSRFTokenAndCookie(server)
+	initToken, initCookie := getCSRFTokenAndCookie(server)
 	email := "adminuser2@example.com"
 	password := "testpassword123"
-	csrfToken, cookie = registerAndLogin(server, email, password, csrfToken, cookie)
+	csrfToken, cookie := registerAndLogin(server, email, password, initToken, initCookie)
 
 	// Set user as admin in DB
 	config.DB.Model(&models.User{}).Where("email = ?", email).Update("role", "admin")
@@ -75,10 +75,10 @@ func TestAdminSlotManagement(t *testing.T) {
 func TestAdminReservationManagement(t *testing.T) {
 	server := setupTestApp()
 	defer server.Close()
-	csrfToken, cookie := getCSRFTokenAndCookie(server)
+	initToken, initCookie := getCSRFTokenAndCookie(server)
 	email := "adminuser3@example.com"
 	password := "testpassword123"
-	csrfToken, cookie = registerAndLogin(server, email, password, csrfToken, cookie)
+	csrfToken, cookie := registerAndLogin(server, email, password, initToken, initCookie)
 
 	// Set user as admin in DB
 	config.DB.Model(&models.User{}).Where("email = ?", email).Update("role", "admin")
@@ -213,10 +213,10 @@ func TestAdminReservationManagement(t *testing.T) {
 func TestAdminGetReservationsByStatus(t *testing.T) {
 	server := setupTestApp()
 	defer server.Close()
-	csrfToken, cookie := getCSRFTokenAndCookie(server)
+	initToken, initCookie := getCSRFTokenAndCookie(server)
 	email := "adminuser4@example.com"
 	password := "testpassword123"
-	csrfToken, cookie = registerAndLogin(server, email, password, csrfToken, cookie)
+	_, cookie := registerAndLogin(server, email, password, initToken, initCookie)
 
 	// Set user as admin in DB
 	config.DB.Model(&models.User{}).Where("email = ?", email).Update("role", "admin")
@@ -265,10 +265,10 @@ func TestAdminGetReservationsByStatus(t *testing.T) {
 func TestAdminUserManagement(t *testing.T) {
 	server := setupTestApp()
 	defer server.Close()
-	csrfToken, cookie := getCSRFTokenAndCookie(server)
+	initToken, initCookie := getCSRFTokenAndCookie(server)
 	email := "adminuser5@example.com"
 	password := "testpassword123"
-	csrfToken, cookie = registerAndLogin(server, email, password, csrfToken, cookie)
+	csrfToken, cookie := registerAndLogin(server, email, password, initToken, initCookie)
 
 	// Set user as admin in DB
 	config.DB.Model(&models.User{}).Where("email = ?", email).Update("role", "admin")
@@ -385,10 +385,10 @@ func TestAdminUserManagement(t *testing.T) {
 func TestAdminUnauthorizedAccess(t *testing.T) {
 	server := setupTestApp()
 	defer server.Close()
-	csrfToken, cookie := getCSRFTokenAndCookie(server)
+	initToken, initCookie := getCSRFTokenAndCookie(server)
 	email := "parentuser2@example.com"
 	password := "testpassword123"
-	csrfToken, cookie = registerAndLogin(server, email, password, csrfToken, cookie)
+	csrfToken, cookie := registerAndLogin(server, email, password, initToken, initCookie)
 
 	// Ensure user is parent (not admin)
 	config.DB.Model(&models.User{}).Where("email = ?", email).Update("role", "parent")

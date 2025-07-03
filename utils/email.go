@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"net/smtp"
+	"os"
 	"time"
 )
 
@@ -16,6 +17,12 @@ var (
 
 // NOTE: In production, SendMail should be mocked in tests to avoid sending real emails.
 func SendMail(to, subject, body string) error {
+	// Skip real SMTP in test mode
+	if os.Getenv("TEST_MODE") == "1" {
+		log.Printf("[SendMail] Test mode - skipping real email to %s: %s", to, subject)
+		return nil
+	}
+
 	from := SMTPUser
 	msg := "From: " + from + "\n" +
 		"To: " + to + "\n" +

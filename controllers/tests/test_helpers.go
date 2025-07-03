@@ -42,6 +42,8 @@ func getCSRFTokenAndCookie(server *httptest.Server) (string, string) {
 		parts := strings.SplitN(raw, ";", 2)
 		cookie = strings.TrimSpace(parts[0])
 	}
+	// Note: This function is only used for initial CSRF token before authentication
+	// The actual CSRF token for authenticated requests should come from registerAndLogin
 	csrfToken := resp.Header.Get("X-CSRF-Token")
 	return csrfToken, cookie
 }
@@ -50,6 +52,7 @@ func registerAndLogin(server *httptest.Server, email, password, csrfToken, cooki
 	client := &http.Client{}
 	payload := map[string]string{"email": email, "password": password}
 	body, _ := json.Marshal(payload)
+
 	// Register
 	regReq, _ := http.NewRequest("POST", server.URL+"/api/auth/register", bytes.NewReader(body))
 	regReq.Header.Set("Content-Type", "application/json")
@@ -67,7 +70,8 @@ func registerAndLogin(server *httptest.Server, email, password, csrfToken, cooki
 		}
 	}
 	regResp.Body.Close()
-	// Explicit login to refresh session and ensure user_id present
+
+	// Login
 	loginReq, _ := http.NewRequest("POST", server.URL+"/api/auth/login", bytes.NewReader(body))
 	loginReq.Header.Set("Content-Type", "application/json")
 	loginReq.Header.Set("X-CSRF-Token", csrfToken)
@@ -81,30 +85,35 @@ func registerAndLogin(server *httptest.Server, email, password, csrfToken, cooki
 		_, _ = bodyBytes.ReadFrom(loginResp.Body)
 		panic(fmt.Sprintf("login failed: status %d, body %s", loginResp.StatusCode, bodyBytes.String()))
 	}
-	if t := loginResp.Header.Get("X-CSRF-Token"); t != "" {
-		csrfToken = t
-	}
+	// Update cookie from login response
 	for _, c := range loginResp.Cookies() {
 		if c.Name == "session" {
 			cookie = c.Name + "=" + c.Value
 		}
 	}
 	loginResp.Body.Close()
-	// Fetch fresh CSRF token via GET so subsequent POSTs use correct token tied to session
-	getReq, _ := http.NewRequest("GET", server.URL+"/api/slots", nil)
+
+	// ⬇️ NEW: Get fresh CSRF after login from a protected endpoint
+	getReq, _ := http.NewRequest("GET", server.URL+"/api/user/profile", nil)
 	getReq.Header.Set("Cookie", cookie)
 	getResp, err := client.Do(getReq)
-	if err == nil {
-		if t := getResp.Header.Get("X-CSRF-Token"); t != "" {
-			csrfToken = t
+	if err != nil {
+		panic(err)
+	}
+	defer getResp.Body.Close()
+	csrfToken = getResp.Header.Get("X-CSRF-Token")
+	// Update cookie with any new Set-Cookie header (session now contains csrf_token)
+	for _, c := range getResp.Cookies() {
+		if c.Name == "session" {
+			cookie = c.Name + "=" + c.Value
 		}
-		getResp.Body.Close()
 	}
 	return csrfToken, cookie
 }
 
 func createSlot(server *httptest.Server, csrfToken, cookie, date string, capacity int) int {
 	client := &http.Client{}
+
 	slotPayload := map[string]interface{}{"date": date, "capacity": capacity}
 	slotBody, _ := json.Marshal(slotPayload)
 	slotReq, _ := http.NewRequest("POST", server.URL+"/api/admin/slots", bytes.NewReader(slotBody))
@@ -134,9 +143,9 @@ func createSlot(server *httptest.Server, csrfToken, cookie, date string, capacit
 	return int(idVal.(float64))
 }
 
-func createChild(server *httptest.Server, csrfToken, cookie, name, birthdate string) int {
+func createChild(server *httptest.Server, csrfToken, cookie, name string, age int) int {
 	client := &http.Client{}
-	childPayload := map[string]interface{}{"name": name, "birthdate": birthdate}
+	childPayload := map[string]interface{}{"name": name, "age": age}
 	childBody, _ := json.Marshal(childPayload)
 	childReq, _ := http.NewRequest("POST", server.URL+"/api/parent/children", bytes.NewReader(childBody))
 	childReq.Header.Set("Content-Type", "application/json")

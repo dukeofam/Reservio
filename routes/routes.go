@@ -28,7 +28,6 @@ func SetupRouter() *mux.Router {
 	}).Methods("GET")
 
 	api := r.PathPrefix("/api").Subrouter()
-	api.Use(middleware.CSRFMiddleware)
 
 	auth := api.PathPrefix("/auth").Subrouter()
 	auth.HandleFunc("/register", controllers.Register).Methods("POST")
@@ -39,6 +38,7 @@ func SetupRouter() *mux.Router {
 
 	parent := api.PathPrefix("/parent").Subrouter()
 	parent.Use(middleware.Protected)
+	parent.Use(middleware.CSRFMiddleware)
 	parent.HandleFunc("/children", controllers.AddChild).Methods("POST")
 	parent.HandleFunc("/children", controllers.GetChildren).Methods("GET")
 	parent.HandleFunc("/reserve", controllers.MakeReservation).Methods("POST")
@@ -51,6 +51,7 @@ func SetupRouter() *mux.Router {
 	admin := api.PathPrefix("/admin").Subrouter()
 	admin.Use(middleware.Protected)
 	admin.Use(middleware.AdminOnly)
+	admin.Use(middleware.CSRFMiddleware)
 	admin.HandleFunc("/slots", controllers.CreateSlot).Methods("POST")
 	admin.HandleFunc("/approve/{id}", controllers.ApproveReservation).Methods("PUT")
 	admin.HandleFunc("/reject/{id}", controllers.RejectReservation).Methods("PUT")
@@ -61,6 +62,7 @@ func SetupRouter() *mux.Router {
 
 	user := api.PathPrefix("/user").Subrouter()
 	user.Use(middleware.Protected)
+	user.Use(middleware.CSRFMiddleware)
 	user.HandleFunc("/profile", controllers.GetProfile).Methods("GET")
 	user.HandleFunc("/profile", controllers.UpdateProfile).Methods("PUT")
 

@@ -30,7 +30,7 @@ func TestReservationEndpoints(t *testing.T) {
 	}
 
 	// Create child
-	childID := createChild(server, csrfToken, cookie, "TestChild", "2018-01-01")
+	childID := createChild(server, csrfToken, cookie, "TestChild", 6)
 	if childID == 0 {
 		t.Fatalf("expected child ID to be non-zero")
 	}
@@ -247,8 +247,8 @@ func TestCancelReservationEdgeCases(t *testing.T) {
 	// No cookie
 	cancelUnauthResp, err := http.DefaultClient.Do(cancelUnauthReq)
 	assert.NoError(t, err)
-	// Application returns 403 for CSRF token mismatch
-	assert.Equal(t, 403, cancelUnauthResp.StatusCode)
+	// Application returns 401 for unauthorized cancellation without valid session
+	assert.Equal(t, 401, cancelUnauthResp.StatusCode)
 }
 
 func TestReservationAuthorization(t *testing.T) {

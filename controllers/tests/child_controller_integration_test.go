@@ -16,7 +16,7 @@ func TestChildEndpoints(t *testing.T) {
 	defer server.Close()
 	csrfToken, cookie := getCSRFTokenAndCookie(server)
 	fmt.Printf("csrfToken: %s, cookie: %s\n", csrfToken, cookie)
-	_, cookie = registerAndLogin(server, "childparent+1@example.com", "testpassword123", csrfToken, cookie)
+	csrfToken, cookie = registerAndLogin(server, "childparent+1@example.com", "testpassword123", csrfToken, cookie)
 
 	// Ensure user is parent in DB
 	config.DB.Model(&models.User{}).Where("email = ?", "childparent+1@example.com").Update("role", "parent")
@@ -49,7 +49,7 @@ func TestAddGetEditDeleteChild(t *testing.T) {
 	defer server.Close()
 	csrfToken, cookie := getCSRFTokenAndCookie(server)
 	fmt.Printf("csrfToken: %s, cookie: %s\n", csrfToken, cookie)
-	_, cookie = registerAndLogin(server, "childparent+1@example.com", "testpassword123", csrfToken, cookie)
+	csrfToken, cookie = registerAndLogin(server, "childparent+1@example.com", "testpassword123", csrfToken, cookie)
 
 	// Ensure user is parent in DB
 	config.DB.Model(&models.User{}).Where("email = ?", "childparent+1@example.com").Update("role", "parent")
@@ -141,8 +141,7 @@ func TestAddChild_InvalidData(t *testing.T) {
 	server := setupTestApp()
 	defer server.Close()
 	csrfToken, cookie := getCSRFTokenAndCookie(server)
-	fmt.Printf("csrfToken: %s, cookie: %s\n", csrfToken, cookie)
-	_, cookie = registerAndLogin(server, "childparent+2@example.com", "testpassword123", csrfToken, cookie)
+	csrfToken, cookie = registerAndLogin(server, "childparent+2@example.com", "testpassword123", csrfToken, cookie)
 
 	// Ensure user is parent in DB
 	config.DB.Model(&models.User{}).Where("email = ?", "childparent+2@example.com").Update("role", "parent")
@@ -167,8 +166,7 @@ func TestDeleteChild_NotFound(t *testing.T) {
 	server := setupTestApp()
 	defer server.Close()
 	csrfToken, cookie := getCSRFTokenAndCookie(server)
-	fmt.Printf("csrfToken: %s, cookie: %s\n", csrfToken, cookie)
-	_, cookie = registerAndLogin(server, "childparent+3@example.com", "testpassword123", csrfToken, cookie)
+	csrfToken, cookie = registerAndLogin(server, "childparent+3@example.com", "testpassword123", csrfToken, cookie)
 
 	// Ensure user is parent in DB
 	config.DB.Model(&models.User{}).Where("email = ?", "childparent+3@example.com").Update("role", "parent")
@@ -189,7 +187,7 @@ func TestChildValidation(t *testing.T) {
 	server := setupTestApp()
 	defer server.Close()
 	csrfToken, cookie := getCSRFTokenAndCookie(server)
-	_, cookie = registerAndLogin(server, "childparent+4@example.com", "testpassword123", csrfToken, cookie)
+	csrfToken, cookie = registerAndLogin(server, "childparent+4@example.com", "testpassword123", csrfToken, cookie)
 
 	// Ensure user is parent in DB
 	config.DB.Model(&models.User{}).Where("email = ?", "childparent+4@example.com").Update("role", "parent")
@@ -263,12 +261,10 @@ func TestChildAuthorization(t *testing.T) {
 	server := setupTestApp()
 	defer server.Close()
 	csrfToken, cookie := getCSRFTokenAndCookie(server)
-	email := "childparent+5@example.com"
-	password := "testpassword123"
-	_, cookie = registerAndLogin(server, email, password, csrfToken, cookie)
+	csrfToken, cookie = registerAndLogin(server, "childparent+5@example.com", "testpassword123", csrfToken, cookie)
 
 	// Ensure user is parent in DB
-	config.DB.Model(&models.User{}).Where("email = ?", email).Update("role", "parent")
+	config.DB.Model(&models.User{}).Where("email = ?", "childparent+5@example.com").Update("role", "parent")
 
 	// Create a child
 	childPayload := map[string]interface{}{"name": "AuthChild", "age": 5}
@@ -369,7 +365,7 @@ func TestChildUnauthorizedAccess(t *testing.T) {
 	defer server.Close()
 
 	// Test child endpoints without authentication
-	// Use GET requests to avoid CSRF token issues
+	// Now that middleware is reordered, Protected runs before CSRF
 	testCases := []struct {
 		endpoint string
 		method   string
@@ -404,7 +400,7 @@ func TestChildEditValidation(t *testing.T) {
 	server := setupTestApp()
 	defer server.Close()
 	csrfToken, cookie := getCSRFTokenAndCookie(server)
-	_, cookie = registerAndLogin(server, "childparent+6@example.com", "testpassword123", csrfToken, cookie)
+	csrfToken, cookie = registerAndLogin(server, "childparent+6@example.com", "testpassword123", csrfToken, cookie)
 
 	// Ensure user is parent in DB
 	config.DB.Model(&models.User{}).Where("email = ?", "childparent+6@example.com").Update("role", "parent")
@@ -467,7 +463,7 @@ func TestChildMultipleChildren(t *testing.T) {
 	server := setupTestApp()
 	defer server.Close()
 	csrfToken, cookie := getCSRFTokenAndCookie(server)
-	_, cookie = registerAndLogin(server, "childparent+7@example.com", "testpassword123", csrfToken, cookie)
+	csrfToken, cookie = registerAndLogin(server, "childparent+7@example.com", "testpassword123", csrfToken, cookie)
 
 	// Ensure user is parent in DB
 	config.DB.Model(&models.User{}).Where("email = ?", "childparent+7@example.com").Update("role", "parent")

@@ -24,15 +24,27 @@ func CSRFMiddleware(next http.Handler) http.Handler {
 		token, _ := session.Values["csrf_token"].(string)
 		expiry, _ := session.Values["csrf_token_expiry"].(int64)
 		now := time.Now().Unix()
+
+		// Log session state for debugging
+		if os.Getenv("TEST_MODE") == "1" {
+			log.Printf("[CSRF] Session values: %#v", session.Values)
+			log.Printf("[CSRF] Current token: %s, expiry: %d, now: %d", token, expiry, now)
+		}
+
 		if token == "" || expiry == 0 || now > expiry {
 			token = generateCSRFToken()
 			session.Values["csrf_token"] = token
 			session.Values["csrf_token_expiry"] = now + 7200 // 2 hours
 			_ = session.Save(r, w)
+			if os.Getenv("TEST_MODE") == "1" {
+				log.Printf("[CSRF] Generated new token: %s", token)
+			}
 		}
 
-		if os.Getenv("TEST_MODE") == "1" && r.Method == http.MethodGet {
+		// Always set CSRF token in header in test mode
+		if os.Getenv("TEST_MODE") == "1" {
 			w.Header().Set("X-CSRF-Token", token)
+			log.Printf("[CSRF] Set token in header: %s", token)
 		}
 
 		if r.Method == http.MethodPost || r.Method == http.MethodPut || r.Method == http.MethodDelete {
@@ -43,12 +55,21 @@ func CSRFMiddleware(next http.Handler) http.Handler {
 					requestToken = r.FormValue("csrf_token")
 				}
 			}
+
+			if os.Getenv("TEST_MODE") == "1" {
+				log.Printf("[CSRF] Validating token - request: %s, session: %s", requestToken, token)
+			}
+
 			if requestToken != token {
 				log.Printf("[CSRF] Invalid CSRF token: got=%s expected=%s", requestToken, token)
 				w.Header().Set("Content-Type", "application/json")
 				w.WriteHeader(http.StatusForbidden)
 				_, _ = w.Write([]byte(`{"error": "Invalid CSRF token"}`))
 				return
+			}
+
+			if os.Getenv("TEST_MODE") == "1" {
+				log.Printf("[CSRF] Token validation successful")
 			}
 		}
 		next.ServeHTTP(w, r)
