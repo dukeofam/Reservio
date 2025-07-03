@@ -152,7 +152,7 @@ func TestUserProfileEndpoints(t *testing.T) {
 	defer server.Close()
 	csrfToken, cookie := getCSRFTokenAndCookie(server)
 	fmt.Printf("csrfToken: %s, cookie: %s\n", csrfToken, cookie)
-	registerAndLogin(server, "profileuser@example.com", "testpassword123", csrfToken, cookie)
+	csrfToken, cookie = registerAndLogin(server, "profileuser@example.com", "testpassword123", csrfToken, cookie)
 
 	// Get profile
 	getReq, _ := http.NewRequest("GET", server.URL+"/api/user/profile", nil)

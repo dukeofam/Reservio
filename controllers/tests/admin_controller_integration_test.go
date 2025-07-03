@@ -10,10 +10,12 @@ func TestAdminEndpoints(t *testing.T) {
 	server := setupTestApp()
 	defer server.Close()
 	csrfToken, cookie := getCSRFTokenAndCookie(server)
-	registerAndLogin(server, "adminuser@example.com", "testpassword123", csrfToken, cookie)
+	email := "adminuser@example.com"
+	password := "testpassword123"
+	csrfToken, cookie = registerAndLogin(server, email, password, csrfToken, cookie)
 
 	// Set user as admin in DB
-	config.DB.Model(&models.User{}).Where("email = ?", "adminuser@example.com").Update("role", "admin")
+	config.DB.Model(&models.User{}).Where("email = ?", email).Update("role", "admin")
 
 	// Create slot using helper
 	slotID := createSlot(server, csrfToken, cookie, "2025-12-10", 5)
