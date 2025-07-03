@@ -8,133 +8,151 @@ import (
 	"reservio/config"
 	"reservio/models"
 	"strconv"
+	"strings"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func TestChildEndpoints(t *testing.T) {
 	server := setupTestApp()
 	defer server.Close()
-	csrfToken, cookie := getCSRFTokenAndCookie(server)
-	csrfToken, cookie = registerAndLogin(server, "childparent+1@example.com", "testpassword123", csrfToken, cookie)
+	initToken, initCookie := getCSRFTokenAndCookie(server)
+	csrfToken, cookie := registerAndLogin(server, "childparent+1@example.com", "testpassword123", initToken, initCookie)
 	fmt.Printf("csrfToken: %s, cookie: %s\n", csrfToken, cookie)
 
-	// Ensure user is parent in DB
-	config.DB.Model(&models.User{}).Where("email = ?", "childparent+1@example.com").Update("role", "parent")
+	// Test add child
+	childPayload := map[string]interface{}{"name": "TestChild", "age": 5}
+	childBody, _ := json.Marshal(childPayload)
+	childReq, _ := http.NewRequest("POST", server.URL+"/api/parent/children", bytes.NewReader(childBody))
+	childReq.Header.Set("Content-Type", "application/json")
+	childReq.Header.Set("X-CSRF-Token", csrfToken)
+	childReq.Header.Set("Cookie", cookie)
+	childResp, err := http.DefaultClient.Do(childReq)
+	assert.NoError(t, err)
+	assert.Equal(t, 200, childResp.StatusCode)
 
-	// Add child
-	addPayload := map[string]interface{}{"name": "TestChild", "age": 5}
-	addBody, _ := json.Marshal(addPayload)
-	addReq, _ := http.NewRequest("POST", server.URL+"/api/parent/children", bytes.NewReader(addBody))
-	addReq.Header.Set("Content-Type", "application/json")
-	addReq.Header.Set("X-CSRF-Token", csrfToken)
-	addReq.Header.Set("Cookie", cookie)
-	addResp, err := http.DefaultClient.Do(addReq)
-	if err != nil {
+	var childResult map[string]interface{}
+	if err := json.NewDecoder(childResp.Body).Decode(&childResult); err != nil {
 		t.Fatal(err)
 	}
-	if addResp.StatusCode != 200 {
-		t.Fatalf("expected 200, got %d", addResp.StatusCode)
-	}
-	var child map[string]interface{}
-	if err := json.NewDecoder(addResp.Body).Decode(&child); err != nil {
+	child := childResult["child"].(map[string]interface{})
+	assert.Equal(t, "TestChild", child["name"])
+	assert.Equal(t, float64(5), child["age"])
+
+	// Test get children
+	getReq, _ := http.NewRequest("GET", server.URL+"/api/parent/children", nil)
+	getReq.Header.Set("Cookie", cookie)
+	getResp, err := http.DefaultClient.Do(getReq)
+	assert.NoError(t, err)
+	assert.Equal(t, 200, getResp.StatusCode)
+
+	var getResult map[string]interface{}
+	if err := json.NewDecoder(getResp.Body).Decode(&getResult); err != nil {
 		t.Fatal(err)
 	}
-	if child["Name"] != "TestChild" {
-		t.Fatalf("expected name 'TestChild', got %v", child["Name"])
-	}
+
+	children := getResult["data"].([]interface{})
+	assert.Equal(t, 1, len(children))
+
+	childData := children[0].(map[string]interface{})
+	assert.Equal(t, "TestChild", childData["name"])
+	assert.Equal(t, float64(5), childData["age"])
 }
 
 func TestAddGetEditDeleteChild(t *testing.T) {
 	server := setupTestApp()
 	defer server.Close()
-	csrfToken, cookie := getCSRFTokenAndCookie(server)
-	csrfToken, cookie = registerAndLogin(server, "childparent+1@example.com", "testpassword123", csrfToken, cookie)
+	initToken, initCookie := getCSRFTokenAndCookie(server)
+	csrfToken, cookie := registerAndLogin(server, "childparent+1@example.com", "testpassword123", initToken, initCookie)
 	fmt.Printf("csrfToken: %s, cookie: %s\n", csrfToken, cookie)
 
-	// Ensure user is parent in DB
-	config.DB.Model(&models.User{}).Where("email = ?", "childparent+1@example.com").Update("role", "parent")
-
 	// Add child
-	childPayload := map[string]interface{}{"name": "Alice", "age": 5}
+	childPayload := map[string]interface{}{"name": "Alice", "age": 7}
 	childBody, _ := json.Marshal(childPayload)
-	addReq, _ := http.NewRequest("POST", server.URL+"/api/parent/children", bytes.NewReader(childBody))
-	addReq.Header.Set("Content-Type", "application/json")
-	addReq.Header.Set("X-CSRF-Token", csrfToken)
-	addReq.Header.Set("Cookie", cookie)
-	addResp, err := http.DefaultClient.Do(addReq)
-	if err != nil {
+	childReq, _ := http.NewRequest("POST", server.URL+"/api/parent/children", bytes.NewReader(childBody))
+	childReq.Header.Set("Content-Type", "application/json")
+	childReq.Header.Set("X-CSRF-Token", csrfToken)
+	childReq.Header.Set("Cookie", cookie)
+	childResp, err := http.DefaultClient.Do(childReq)
+	assert.NoError(t, err)
+	assert.Equal(t, 200, childResp.StatusCode)
+
+	var childResult map[string]interface{}
+	if err := json.NewDecoder(childResp.Body).Decode(&childResult); err != nil {
 		t.Fatal(err)
 	}
-	if addResp.StatusCode != 200 {
-		t.Fatalf("expected 200, got %d", addResp.StatusCode)
-	}
-	var added map[string]interface{}
-	if err := json.NewDecoder(addResp.Body).Decode(&added); err != nil {
-		t.Fatal(err)
-	}
-	if added["Name"] != "Alice" {
-		t.Fatalf("expected name 'Alice', got %v", added["Name"])
-	}
+	child := childResult["child"].(map[string]interface{})
+	childID := int(child["id"].(float64))
+	assert.Equal(t, "Alice", child["name"])
+	assert.Equal(t, float64(7), child["age"])
 
 	// Get children
 	getReq, _ := http.NewRequest("GET", server.URL+"/api/parent/children", nil)
 	getReq.Header.Set("Cookie", cookie)
 	getResp, err := http.DefaultClient.Do(getReq)
-	if err != nil {
+	assert.NoError(t, err)
+	assert.Equal(t, 200, getResp.StatusCode)
+
+	var getResult map[string]interface{}
+	if err := json.NewDecoder(getResp.Body).Decode(&getResult); err != nil {
 		t.Fatal(err)
-	}
-	if getResp.StatusCode != 200 {
-		t.Fatalf("expected 200, got %d", getResp.StatusCode)
-	}
-	var children []map[string]interface{}
-	if err := json.NewDecoder(getResp.Body).Decode(&children); err != nil {
-		t.Fatal(err)
-	}
-	if len(children) == 0 {
-		t.Fatalf("expected at least one child")
 	}
 
+	children := getResult["data"].([]interface{})
+	assert.Equal(t, 1, len(children))
+
+	childData := children[0].(map[string]interface{})
+	assert.Equal(t, "Alice", childData["name"])
+	assert.Equal(t, float64(7), childData["age"])
+
 	// Edit child
-	childID := int(added["ID"].(float64))
-	editPayload := map[string]interface{}{"name": "AliceUpdated", "age": 6}
+	editPayload := map[string]interface{}{"name": "Alice Updated", "age": 8}
 	editBody, _ := json.Marshal(editPayload)
 	editReq, _ := http.NewRequest("PUT", server.URL+"/api/parent/children/"+strconv.Itoa(childID), bytes.NewReader(editBody))
 	editReq.Header.Set("Content-Type", "application/json")
 	editReq.Header.Set("X-CSRF-Token", csrfToken)
 	editReq.Header.Set("Cookie", cookie)
 	editResp, err := http.DefaultClient.Do(editReq)
-	if err != nil {
+	assert.NoError(t, err)
+	assert.Equal(t, 200, editResp.StatusCode)
+
+	var editResult map[string]interface{}
+	if err := json.NewDecoder(editResp.Body).Decode(&editResult); err != nil {
 		t.Fatal(err)
 	}
-	if editResp.StatusCode != 200 {
-		t.Fatalf("expected 200, got %d", editResp.StatusCode)
-	}
-	var edited map[string]interface{}
-	if err := json.NewDecoder(editResp.Body).Decode(&edited); err != nil {
-		t.Fatal(err)
-	}
-	if edited["Name"] != "AliceUpdated" {
-		t.Fatalf("expected name 'AliceUpdated', got %v", edited["Name"])
-	}
+	editedChild := editResult["child"].(map[string]interface{})
+	assert.Equal(t, "Alice Updated", editedChild["name"])
+	assert.Equal(t, float64(8), editedChild["age"])
 
 	// Delete child
-	delReq, _ := http.NewRequest("DELETE", server.URL+"/api/parent/children/"+strconv.Itoa(childID), nil)
-	delReq.Header.Set("X-CSRF-Token", csrfToken)
-	delReq.Header.Set("Cookie", cookie)
-	delResp, err := http.DefaultClient.Do(delReq)
-	if err != nil {
+	deleteReq, _ := http.NewRequest("DELETE", server.URL+"/api/parent/children/"+strconv.Itoa(childID), nil)
+	deleteReq.Header.Set("X-CSRF-Token", csrfToken)
+	deleteReq.Header.Set("Cookie", cookie)
+	deleteResp, err := http.DefaultClient.Do(deleteReq)
+	assert.NoError(t, err)
+	assert.Equal(t, 200, deleteResp.StatusCode)
+
+	var deleteResult map[string]interface{}
+	if err := json.NewDecoder(deleteResp.Body).Decode(&deleteResult); err != nil {
 		t.Fatal(err)
 	}
-	if delResp.StatusCode != 200 {
-		t.Fatalf("expected 200, got %d", delResp.StatusCode)
-	}
-	var delResult map[string]interface{}
-	if err := json.NewDecoder(delResp.Body).Decode(&delResult); err != nil {
+	assert.Equal(t, "Child deleted successfully", deleteResult["message"])
+
+	// Verify child is deleted
+	getReq2, _ := http.NewRequest("GET", server.URL+"/api/parent/children", nil)
+	getReq2.Header.Set("Cookie", cookie)
+	getResp2, err := http.DefaultClient.Do(getReq2)
+	assert.NoError(t, err)
+	assert.Equal(t, 200, getResp2.StatusCode)
+
+	var getResult2 map[string]interface{}
+	if err := json.NewDecoder(getResp2.Body).Decode(&getResult2); err != nil {
 		t.Fatal(err)
 	}
-	if delResult["message"] != "Child deleted" {
-		t.Fatalf("expected 'Child deleted', got %v", delResult["message"])
-	}
+
+	children2 := getResult2["data"].([]interface{})
+	assert.Equal(t, 0, len(children2))
 }
 
 func TestAddChild_InvalidData(t *testing.T) {
@@ -186,59 +204,8 @@ func TestDeleteChild_NotFound(t *testing.T) {
 func TestChildValidation(t *testing.T) {
 	server := setupTestApp()
 	defer server.Close()
-	csrfToken, cookie := getCSRFTokenAndCookie(server)
-	csrfToken, cookie = registerAndLogin(server, "childparent+4@example.com", "testpassword123", csrfToken, cookie)
-
-	// Ensure user is parent in DB
-	config.DB.Model(&models.User{}).Where("email = ?", "childparent+4@example.com").Update("role", "parent")
-
-	// Test missing name
-	missingNamePayload := map[string]interface{}{"age": 5}
-	missingNameBody, _ := json.Marshal(missingNamePayload)
-	missingNameReq, _ := http.NewRequest("POST", server.URL+"/api/parent/children", bytes.NewReader(missingNameBody))
-	missingNameReq.Header.Set("Content-Type", "application/json")
-	missingNameReq.Header.Set("X-CSRF-Token", csrfToken)
-	missingNameReq.Header.Set("Cookie", cookie)
-	missingNameResp, err := http.DefaultClient.Do(missingNameReq)
-	if err != nil {
-		t.Fatal(err)
-	}
-	// Application validates required fields and returns 400 for missing name
-	if missingNameResp.StatusCode != 400 {
-		t.Fatalf("expected 400, got %d", missingNameResp.StatusCode)
-	}
-
-	// Test missing age
-	missingAgePayload := map[string]interface{}{"name": "TestChild"}
-	missingAgeBody, _ := json.Marshal(missingAgePayload)
-	missingAgeReq, _ := http.NewRequest("POST", server.URL+"/api/parent/children", bytes.NewReader(missingAgeBody))
-	missingAgeReq.Header.Set("Content-Type", "application/json")
-	missingAgeReq.Header.Set("X-CSRF-Token", csrfToken)
-	missingAgeReq.Header.Set("Cookie", cookie)
-	missingAgeResp, err := http.DefaultClient.Do(missingAgeReq)
-	if err != nil {
-		t.Fatal(err)
-	}
-	// Application is more permissive - accepts missing age with default value
-	if missingAgeResp.StatusCode != 200 {
-		t.Fatalf("expected 200, got %d", missingAgeResp.StatusCode)
-	}
-
-	// Test invalid age (negative)
-	invalidAgePayload := map[string]interface{}{"name": "TestChild", "age": -5}
-	invalidAgeBody, _ := json.Marshal(invalidAgePayload)
-	invalidAgeReq, _ := http.NewRequest("POST", server.URL+"/api/parent/children", bytes.NewReader(invalidAgeBody))
-	invalidAgeReq.Header.Set("Content-Type", "application/json")
-	invalidAgeReq.Header.Set("X-CSRF-Token", csrfToken)
-	invalidAgeReq.Header.Set("Cookie", cookie)
-	invalidAgeResp, err := http.DefaultClient.Do(invalidAgeReq)
-	if err != nil {
-		t.Fatal(err)
-	}
-	// Application is more permissive - accepts invalid age
-	if invalidAgeResp.StatusCode != 200 {
-		t.Fatalf("expected 200, got %d", invalidAgeResp.StatusCode)
-	}
+	initToken, initCookie := getCSRFTokenAndCookie(server)
+	csrfToken, cookie := registerAndLogin(server, "childparent+4@example.com", "testpassword123", initToken, initCookie)
 
 	// Test empty name
 	emptyNamePayload := map[string]interface{}{"name": "", "age": 5}
@@ -248,116 +215,116 @@ func TestChildValidation(t *testing.T) {
 	emptyNameReq.Header.Set("X-CSRF-Token", csrfToken)
 	emptyNameReq.Header.Set("Cookie", cookie)
 	emptyNameResp, err := http.DefaultClient.Do(emptyNameReq)
-	if err != nil {
+	assert.NoError(t, err)
+	assert.Equal(t, 400, emptyNameResp.StatusCode)
+
+	var emptyNameResult map[string]interface{}
+	if err := json.NewDecoder(emptyNameResp.Body).Decode(&emptyNameResult); err != nil {
 		t.Fatal(err)
 	}
-	// Application validates name is required and returns 400 for empty name
-	if emptyNameResp.StatusCode != 400 {
-		t.Fatalf("expected 400, got %d", emptyNameResp.StatusCode)
+	assert.Equal(t, "Child name is required", emptyNameResult["error"])
+
+	// Test invalid age
+	invalidAgePayload := map[string]interface{}{"name": "TestChild", "age": 25}
+	invalidAgeBody, _ := json.Marshal(invalidAgePayload)
+	invalidAgeReq, _ := http.NewRequest("POST", server.URL+"/api/parent/children", bytes.NewReader(invalidAgeBody))
+	invalidAgeReq.Header.Set("Content-Type", "application/json")
+	invalidAgeReq.Header.Set("X-CSRF-Token", csrfToken)
+	invalidAgeReq.Header.Set("Cookie", cookie)
+	invalidAgeResp, err := http.DefaultClient.Do(invalidAgeReq)
+	assert.NoError(t, err)
+	assert.Equal(t, 400, invalidAgeResp.StatusCode)
+
+	var invalidAgeResult map[string]interface{}
+	if err := json.NewDecoder(invalidAgeResp.Body).Decode(&invalidAgeResult); err != nil {
+		t.Fatal(err)
 	}
+	assert.Equal(t, "Child age must be between 0 and 18", invalidAgeResult["error"])
+
+	// Test valid child
+	validPayload := map[string]interface{}{"name": "ValidChild", "age": 10}
+	validBody, _ := json.Marshal(validPayload)
+	validReq, _ := http.NewRequest("POST", server.URL+"/api/parent/children", bytes.NewReader(validBody))
+	validReq.Header.Set("Content-Type", "application/json")
+	validReq.Header.Set("X-CSRF-Token", csrfToken)
+	validReq.Header.Set("Cookie", cookie)
+	validResp, err := http.DefaultClient.Do(validReq)
+	assert.NoError(t, err)
+	assert.Equal(t, 200, validResp.StatusCode)
 }
 
 func TestChildAuthorization(t *testing.T) {
 	server := setupTestApp()
 	defer server.Close()
-	csrfToken, cookie := getCSRFTokenAndCookie(server)
-	csrfToken, cookie = registerAndLogin(server, "childparent+5@example.com", "testpassword123", csrfToken, cookie)
+	initToken, initCookie := getCSRFTokenAndCookie(server)
+	csrfToken, cookie := registerAndLogin(server, "childparent+5@example.com", "testpassword123", initToken, initCookie)
 
-	// Ensure user is parent in DB
-	config.DB.Model(&models.User{}).Where("email = ?", "childparent+5@example.com").Update("role", "parent")
-
-	// Create a child
-	childPayload := map[string]interface{}{"name": "AuthChild", "age": 5}
+	// Create a child for the first parent
+	childPayload := map[string]interface{}{"name": "FirstChild", "age": 5}
 	childBody, _ := json.Marshal(childPayload)
 	childReq, _ := http.NewRequest("POST", server.URL+"/api/parent/children", bytes.NewReader(childBody))
 	childReq.Header.Set("Content-Type", "application/json")
 	childReq.Header.Set("X-CSRF-Token", csrfToken)
 	childReq.Header.Set("Cookie", cookie)
 	childResp, err := http.DefaultClient.Do(childReq)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if childResp.StatusCode != 200 {
-		t.Fatalf("expected 200, got %d", childResp.StatusCode)
-	}
+	assert.NoError(t, err)
+	assert.Equal(t, 200, childResp.StatusCode)
 
 	var childResult map[string]interface{}
 	if err := json.NewDecoder(childResp.Body).Decode(&childResult); err != nil {
 		t.Fatal(err)
 	}
-	childID := int(childResult["ID"].(float64))
+	child := childResult["child"].(map[string]interface{})
+	childID := int(child["id"].(float64))
 
-	// Create another user and try to access the first user's child
-	otherEmail := "otherchildparent@example.com"
-	otherPassword := "testpassword123"
+	// Create a second parent and try to access the first parent's child
+	secondParentPayload := map[string]string{"email": "secondparent@example.com", "password": "testpassword123"}
+	secondParentBody, _ := json.Marshal(secondParentPayload)
+	secondParentReq, _ := http.NewRequest("POST", server.URL+"/api/auth/register", bytes.NewReader(secondParentBody))
+	secondParentReq.Header.Set("Content-Type", "application/json")
+	secondParentReq.Header.Set("X-CSRF-Token", csrfToken)
+	secondParentReq.Header.Set("Cookie", cookie)
+	_, err = http.DefaultClient.Do(secondParentReq)
+	assert.NoError(t, err)
 
-	// Register other user
-	otherPayload := map[string]string{"email": otherEmail, "password": otherPassword}
-	otherBody, _ := json.Marshal(otherPayload)
-	otherRegReq, _ := http.NewRequest("POST", server.URL+"/api/auth/register", bytes.NewReader(otherBody))
-	otherRegReq.Header.Set("Content-Type", "application/json")
-	otherRegReq.Header.Set("X-CSRF-Token", csrfToken)
-	otherRegReq.Header.Set("Cookie", cookie)
-	_, err = http.DefaultClient.Do(otherRegReq)
-	if err != nil {
-		t.Fatal(err)
-	}
+	// Login as second parent
+	secondParentLoginPayload := map[string]string{"email": "secondparent@example.com", "password": "testpassword123"}
+	secondParentLoginBody, _ := json.Marshal(secondParentLoginPayload)
+	secondParentLoginReq, _ := http.NewRequest("POST", server.URL+"/api/auth/login", bytes.NewReader(secondParentLoginBody))
+	secondParentLoginReq.Header.Set("Content-Type", "application/json")
+	secondParentLoginReq.Header.Set("X-CSRF-Token", csrfToken)
+	secondParentLoginReq.Header.Set("Cookie", cookie)
+	secondParentLoginResp, err := http.DefaultClient.Do(secondParentLoginReq)
+	assert.NoError(t, err)
+	assert.Equal(t, 200, secondParentLoginResp.StatusCode)
 
-	// Set other user as parent
-	config.DB.Model(&models.User{}).Where("email = ?", otherEmail).Update("role", "parent")
-
-	// Login as other user
-	otherLoginPayload := map[string]string{"email": otherEmail, "password": otherPassword}
-	otherLoginBody, _ := json.Marshal(otherLoginPayload)
-	otherLoginReq, _ := http.NewRequest("POST", server.URL+"/api/auth/login", bytes.NewReader(otherLoginBody))
-	otherLoginReq.Header.Set("Content-Type", "application/json")
-	otherLoginReq.Header.Set("X-CSRF-Token", csrfToken)
-	otherLoginReq.Header.Set("Cookie", cookie)
-	otherLoginResp, err := http.DefaultClient.Do(otherLoginReq)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if otherLoginResp.StatusCode != 200 {
-		t.Fatalf("expected 200, got %d", otherLoginResp.StatusCode)
-	}
-
-	// Get other user's session cookie
-	var otherCookie string
-	for _, c := range otherLoginResp.Cookies() {
+	// Get cookies from login response
+	var secondParentCookies []string
+	for _, c := range secondParentLoginResp.Cookies() {
 		if c.Name == "session" {
-			otherCookie = c.Name + "=" + c.Value
-			break
+			secondParentCookies = append(secondParentCookies, c.Name+"="+c.Value)
 		}
 	}
+	secondParentCookie := strings.Join(secondParentCookies, "; ")
 
-	// Try to edit first user's child with other user's session
-	editPayload := map[string]interface{}{"name": "UnauthorizedEdit", "age": 5}
+	// Try to edit the first parent's child
+	editPayload := map[string]interface{}{"name": "UnauthorizedEdit", "age": 6}
 	editBody, _ := json.Marshal(editPayload)
 	editReq, _ := http.NewRequest("PUT", server.URL+"/api/parent/children/"+strconv.Itoa(childID), bytes.NewReader(editBody))
 	editReq.Header.Set("Content-Type", "application/json")
 	editReq.Header.Set("X-CSRF-Token", csrfToken)
-	editReq.Header.Set("Cookie", otherCookie)
+	editReq.Header.Set("Cookie", secondParentCookie)
 	editResp, err := http.DefaultClient.Do(editReq)
-	if err != nil {
-		t.Fatal(err)
-	}
-	// Should be 404 (not found) or 403 (forbidden) depending on implementation
-	if editResp.StatusCode != 404 && editResp.StatusCode != 403 {
-		t.Fatalf("expected 404 or 403, got %d", editResp.StatusCode)
-	}
+	assert.NoError(t, err)
+	assert.Equal(t, 404, editResp.StatusCode) // Should fail due to authorization
 
-	// Try to delete first user's child with other user's session
+	// Try to delete the first parent's child
 	deleteReq, _ := http.NewRequest("DELETE", server.URL+"/api/parent/children/"+strconv.Itoa(childID), nil)
 	deleteReq.Header.Set("X-CSRF-Token", csrfToken)
-	deleteReq.Header.Set("Cookie", otherCookie)
+	deleteReq.Header.Set("Cookie", secondParentCookie)
 	deleteResp, err := http.DefaultClient.Do(deleteReq)
-	if err != nil {
-		t.Fatal(err)
-	}
-	// Should be 404 (not found) or 403 (forbidden) depending on implementation
-	if deleteResp.StatusCode != 404 && deleteResp.StatusCode != 403 {
-		t.Fatalf("expected 404 or 403, got %d", deleteResp.StatusCode)
-	}
+	assert.NoError(t, err)
+	assert.Equal(t, 404, deleteResp.StatusCode) // Should fail due to authorization
 }
 
 func TestChildUnauthorizedAccess(t *testing.T) {
@@ -424,7 +391,8 @@ func TestChildEditValidation(t *testing.T) {
 	if err := json.NewDecoder(childResp.Body).Decode(&childResult); err != nil {
 		t.Fatal(err)
 	}
-	childID := int(childResult["ID"].(float64))
+	child := childResult["child"].(map[string]interface{})
+	childID := int(child["id"].(float64))
 
 	// Test edit with invalid data
 	invalidEditPayload := map[string]interface{}{"name": "", "age": -5}
@@ -437,9 +405,9 @@ func TestChildEditValidation(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	// Application is more permissive - accepts invalid data
-	if invalidEditResp.StatusCode != 200 {
-		t.Fatalf("expected 200, got %d", invalidEditResp.StatusCode)
+	// Should fail due to invalid age validation
+	if invalidEditResp.StatusCode != 400 {
+		t.Fatalf("expected 400, got %d", invalidEditResp.StatusCode)
 	}
 
 	// Test edit with missing name
@@ -453,7 +421,7 @@ func TestChildEditValidation(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	// Application is more permissive - accepts missing name
+	// Should succeed with valid age only
 	if missingNameEditResp.StatusCode != 200 {
 		t.Fatalf("expected 200, got %d", missingNameEditResp.StatusCode)
 	}
@@ -494,7 +462,8 @@ func TestChildMultipleChildren(t *testing.T) {
 		if err := json.NewDecoder(childResp.Body).Decode(&childResult); err != nil {
 			t.Fatal(err)
 		}
-		childIDs = append(childIDs, int(childResult["ID"].(float64)))
+		child := childResult["child"].(map[string]interface{})
+		childIDs = append(childIDs, int(child["id"].(float64)))
 	}
 
 	// Get all children
@@ -508,18 +477,20 @@ func TestChildMultipleChildren(t *testing.T) {
 		t.Fatalf("expected 200, got %d", getResp.StatusCode)
 	}
 
-	var allChildren []map[string]interface{}
-	if err := json.NewDecoder(getResp.Body).Decode(&allChildren); err != nil {
+	var allChildrenResult map[string]interface{}
+	if err := json.NewDecoder(getResp.Body).Decode(&allChildrenResult); err != nil {
 		t.Fatal(err)
 	}
+	allChildren := allChildrenResult["data"].([]interface{})
 	if len(allChildren) != 3 {
 		t.Fatalf("expected 3 children, got %d", len(allChildren))
 	}
 
 	// Verify all children are present
 	foundNames := make(map[string]bool)
-	for _, child := range allChildren {
-		foundNames[child["Name"].(string)] = true
+	for _, childInterface := range allChildren {
+		child := childInterface.(map[string]interface{})
+		foundNames[child["name"].(string)] = true
 	}
 	for _, child := range children {
 		if !foundNames[child["name"].(string)] {
@@ -546,8 +517,9 @@ func TestChildMultipleChildren(t *testing.T) {
 	if err := json.NewDecoder(editResp.Body).Decode(&editResult); err != nil {
 		t.Fatal(err)
 	}
-	if editResult["Name"] != "Child1Updated" {
-		t.Fatalf("expected name 'Child1Updated', got %v", editResult["Name"])
+	child := editResult["child"].(map[string]interface{})
+	if child["name"] != "Child1Updated" {
+		t.Fatalf("expected name 'Child1Updated', got %v", child["name"])
 	}
 
 	// Delete one child
@@ -573,10 +545,11 @@ func TestChildMultipleChildren(t *testing.T) {
 		t.Fatalf("expected 200, got %d", getResp2.StatusCode)
 	}
 
-	var remainingChildren []map[string]interface{}
-	if err := json.NewDecoder(getResp2.Body).Decode(&remainingChildren); err != nil {
+	var remainingChildrenResult map[string]interface{}
+	if err := json.NewDecoder(getResp2.Body).Decode(&remainingChildrenResult); err != nil {
 		t.Fatal(err)
 	}
+	remainingChildren := remainingChildrenResult["data"].([]interface{})
 	if len(remainingChildren) != 2 {
 		t.Fatalf("expected 2 children after deletion, got %d", len(remainingChildren))
 	}

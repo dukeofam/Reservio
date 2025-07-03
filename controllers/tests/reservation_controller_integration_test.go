@@ -75,7 +75,8 @@ func TestReservationLifecycle(t *testing.T) {
 	if err := json.NewDecoder(childResp.Body).Decode(&childResult); err != nil {
 		t.Fatal(err)
 	}
-	childID := int(childResult["ID"].(float64))
+	child := childResult["child"].(map[string]interface{})
+	childID := int(child["id"].(float64))
 
 	// Make reservation
 	resPayload := map[string]interface{}{"slot_id": slotID, "child_id": childID}
@@ -95,12 +96,14 @@ func TestReservationLifecycle(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, 200, listResp.StatusCode)
 
-	var reservations []map[string]interface{}
-	if err := json.NewDecoder(listResp.Body).Decode(&reservations); err != nil {
+	var listResult map[string]interface{}
+	if err := json.NewDecoder(listResp.Body).Decode(&listResult); err != nil {
 		t.Fatal(err)
 	}
+	reservations := listResult["data"].([]interface{})
 	assert.Greater(t, len(reservations), 0)
-	reservationID := int(reservations[0]["ID"].(float64))
+	reservation := reservations[0].(map[string]interface{})
+	reservationID := int(reservation["id"].(float64))
 
 	// Cancel reservation
 	cancelReq, _ := http.NewRequest("DELETE", server.URL+"/api/parent/reservations/"+strconv.Itoa(reservationID), nil)
@@ -114,7 +117,7 @@ func TestReservationLifecycle(t *testing.T) {
 	if err := json.NewDecoder(cancelResp.Body).Decode(&cancelResult); err != nil {
 		t.Fatal(err)
 	}
-	assert.Equal(t, "Reservation cancelled", cancelResult["message"])
+	assert.Equal(t, "Reservation cancelled successfully", cancelResult["message"])
 
 	// Verify reservation is cancelled by checking list again
 	listReq2, _ := http.NewRequest("GET", server.URL+"/api/parent/reservations", nil)
@@ -123,10 +126,11 @@ func TestReservationLifecycle(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, 200, listResp2.StatusCode)
 
-	var reservations2 []map[string]interface{}
-	if err := json.NewDecoder(listResp2.Body).Decode(&reservations2); err != nil {
+	var listResult2 map[string]interface{}
+	if err := json.NewDecoder(listResp2.Body).Decode(&listResult2); err != nil {
 		t.Fatal(err)
 	}
+	reservations2 := listResult2["data"].([]interface{})
 	// Should be empty now or have cancelled status
 	assert.LessOrEqual(t, len(reservations2), len(reservations))
 }
@@ -162,7 +166,8 @@ func TestReservationEdgeCases(t *testing.T) {
 	if err := json.NewDecoder(childResp.Body).Decode(&childResult); err != nil {
 		t.Fatal(err)
 	}
-	childID := int(childResult["ID"].(float64))
+	child := childResult["child"].(map[string]interface{})
+	childID := int(child["id"].(float64))
 
 	// Test reservation with invalid slot ID
 	invalidSlotPayload := map[string]interface{}{"slot_id": 99999, "child_id": childID}
@@ -174,7 +179,7 @@ func TestReservationEdgeCases(t *testing.T) {
 	invalidSlotResp, err := http.DefaultClient.Do(invalidSlotReq)
 	assert.NoError(t, err)
 	// Application is more permissive - accepts invalid slot ID
-	assert.Equal(t, 200, invalidSlotResp.StatusCode)
+	assert.Equal(t, 404, invalidSlotResp.StatusCode)
 
 	// Test reservation with invalid child ID
 	invalidChildPayload := map[string]interface{}{"slot_id": slotID, "child_id": 99999}
@@ -185,8 +190,8 @@ func TestReservationEdgeCases(t *testing.T) {
 	invalidChildReq.Header.Set("Cookie", cookie)
 	invalidChildResp, err := http.DefaultClient.Do(invalidChildReq)
 	assert.NoError(t, err)
-	// Application is more permissive - accepts invalid child ID
-	assert.Equal(t, 200, invalidChildResp.StatusCode)
+	// Expect not found for invalid child ID
+	assert.Equal(t, 404, invalidChildResp.StatusCode)
 
 	// Test reservation with missing data
 	missingDataPayload := map[string]interface{}{"slot_id": slotID}
@@ -217,8 +222,8 @@ func TestReservationEdgeCases(t *testing.T) {
 	doubleBookReq.Header.Set("Cookie", cookie)
 	doubleBookResp, err := http.DefaultClient.Do(doubleBookReq)
 	assert.NoError(t, err)
-	// This might be 400 (validation error) or 200 (if double booking is allowed)
-	assert.Contains(t, []int{200, 400}, doubleBookResp.StatusCode)
+	// Expect validation error for double booking (already booked)
+	assert.Contains(t, []int{400, 409}, doubleBookResp.StatusCode)
 }
 
 func TestCancelReservationEdgeCases(t *testing.T) {
@@ -238,8 +243,8 @@ func TestCancelReservationEdgeCases(t *testing.T) {
 	cancelNotFoundReq.Header.Set("Cookie", cookie)
 	cancelNotFoundResp, err := http.DefaultClient.Do(cancelNotFoundReq)
 	assert.NoError(t, err)
-	// Application is more permissive - accepts non-existent reservation
-	assert.Equal(t, 200, cancelNotFoundResp.StatusCode)
+	// Expect not found for non-existent reservation
+	assert.Equal(t, 404, cancelNotFoundResp.StatusCode)
 
 	// Test cancel reservation without authentication
 	cancelUnauthReq, _ := http.NewRequest("DELETE", server.URL+"/api/parent/reservations/1", nil)
@@ -282,7 +287,8 @@ func TestReservationAuthorization(t *testing.T) {
 	if err := json.NewDecoder(childResp.Body).Decode(&childResult); err != nil {
 		t.Fatal(err)
 	}
-	childID := int(childResult["ID"].(float64))
+	child := childResult["child"].(map[string]interface{})
+	childID := int(child["id"].(float64))
 
 	// Make reservation
 	resPayload := map[string]interface{}{"slot_id": slotID, "child_id": childID}
@@ -302,12 +308,14 @@ func TestReservationAuthorization(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, 200, listResp.StatusCode)
 
-	var reservations []map[string]interface{}
-	if err := json.NewDecoder(listResp.Body).Decode(&reservations); err != nil {
+	var listResult map[string]interface{}
+	if err := json.NewDecoder(listResp.Body).Decode(&listResult); err != nil {
 		t.Fatal(err)
 	}
+	reservations := listResult["data"].([]interface{})
 	assert.Greater(t, len(reservations), 0)
-	reservationID := int(reservations[0]["ID"].(float64))
+	reservation := reservations[0].(map[string]interface{})
+	reservationID := int(reservation["id"].(float64))
 
 	// Test that parent can only access their own reservations
 	// Create another user and try to access the first user's reservation
@@ -353,8 +361,8 @@ func TestReservationAuthorization(t *testing.T) {
 	cancelOtherReq.Header.Set("Cookie", otherCookie)
 	cancelOtherResp, err := http.DefaultClient.Do(cancelOtherReq)
 	assert.NoError(t, err)
-	// Application is more permissive - allows cancellation of other user's reservation
-	assert.Equal(t, 200, cancelOtherResp.StatusCode)
+	// Should be not found / unauthorized
+	assert.Equal(t, 404, cancelOtherResp.StatusCode)
 }
 
 func TestReservationCapacityLimits(t *testing.T) {
@@ -385,7 +393,8 @@ func TestReservationCapacityLimits(t *testing.T) {
 	if err := json.NewDecoder(child1Resp.Body).Decode(&child1Result); err != nil {
 		t.Fatal(err)
 	}
-	child1ID := int(child1Result["ID"].(float64))
+	child1 := child1Result["child"].(map[string]interface{})
+	child1ID := int(child1["id"].(float64))
 
 	child2Payload := map[string]interface{}{"name": "Child2", "birthdate": "2019-02-02"}
 	child2Body, _ := json.Marshal(child2Payload)
@@ -401,7 +410,8 @@ func TestReservationCapacityLimits(t *testing.T) {
 	if err := json.NewDecoder(child2Resp.Body).Decode(&child2Result); err != nil {
 		t.Fatal(err)
 	}
-	child2ID := int(child2Result["ID"].(float64))
+	child2 := child2Result["child"].(map[string]interface{})
+	child2ID := int(child2["id"].(float64))
 
 	// Make first reservation
 	res1Payload := map[string]interface{}{"slot_id": slotID, "child_id": child1ID}
@@ -440,7 +450,8 @@ func TestReservationCapacityLimits(t *testing.T) {
 	if err := json.NewDecoder(child3Resp.Body).Decode(&child3Result); err != nil {
 		t.Fatal(err)
 	}
-	child3ID := int(child3Result["ID"].(float64))
+	child3 := child3Result["child"].(map[string]interface{})
+	child3ID := int(child3["id"].(float64))
 
 	res3Payload := map[string]interface{}{"slot_id": slotID, "child_id": child3ID}
 	res3Body, _ := json.Marshal(res3Payload)
@@ -451,5 +462,5 @@ func TestReservationCapacityLimits(t *testing.T) {
 	res3Resp, err := http.DefaultClient.Do(res3Req)
 	// This might be 400 (capacity exceeded) or 200 (if capacity is not enforced)
 	assert.NoError(t, err)
-	assert.Contains(t, []int{200, 400}, res3Resp.StatusCode)
+	assert.Contains(t, []int{400, 409}, res3Resp.StatusCode)
 }

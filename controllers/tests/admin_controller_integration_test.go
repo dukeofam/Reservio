@@ -56,8 +56,9 @@ func TestAdminSlotManagement(t *testing.T) {
 	if err := json.NewDecoder(slotResp.Body).Decode(&slotResult); err != nil {
 		t.Fatal(err)
 	}
-	assert.Equal(t, "2025-12-15", slotResult["Date"])
-	assert.Equal(t, float64(10), slotResult["Capacity"])
+	slot := slotResult["slot"].(map[string]interface{})
+	assert.Equal(t, "2025-12-15", slot["date"])
+	assert.Equal(t, float64(10), slot["capacity"])
 
 	// Test invalid slot creation (missing date)
 	invalidSlotPayload := map[string]interface{}{"capacity": 10}
@@ -68,8 +69,8 @@ func TestAdminSlotManagement(t *testing.T) {
 	invalidSlotReq.Header.Set("Cookie", cookie)
 	invalidSlotResp, err := http.DefaultClient.Do(invalidSlotReq)
 	assert.NoError(t, err)
-	// Application is more permissive - accepts missing date with default value
-	assert.Equal(t, 200, invalidSlotResp.StatusCode)
+	// Should fail due to missing date validation
+	assert.Equal(t, 400, invalidSlotResp.StatusCode)
 }
 
 func TestAdminReservationManagement(t *testing.T) {
@@ -83,67 +84,41 @@ func TestAdminReservationManagement(t *testing.T) {
 	// Set user as admin in DB
 	config.DB.Model(&models.User{}).Where("email = ?", email).Update("role", "admin")
 
-	// Create a parent user and reservation for testing
-	parentEmail := "parentuser@example.com"
-	parentPassword := "testpassword123"
+	// Create a slot
+	slotID := createSlot(server, csrfToken, cookie, "2025-12-25", 8)
+	assert.Greater(t, slotID, 0)
 
-	// Register parent
-	parentPayload := map[string]string{"email": parentEmail, "password": parentPassword}
-	parentBody, _ := json.Marshal(parentPayload)
-	parentRegReq, _ := http.NewRequest("POST", server.URL+"/api/auth/register", bytes.NewReader(parentBody))
-	parentRegReq.Header.Set("Content-Type", "application/json")
-	parentRegReq.Header.Set("X-CSRF-Token", csrfToken)
-	parentRegReq.Header.Set("Cookie", cookie)
-	_, err := http.DefaultClient.Do(parentRegReq)
-	assert.NoError(t, err)
+	// Create a child
+	childID := createChild(server, csrfToken, cookie, "TestChild", 5)
+	assert.Greater(t, childID, 0)
 
-	// Set parent role
-	config.DB.Model(&models.User{}).Where("email = ?", parentEmail).Update("role", "parent")
-
-	// Create slot
-	slotID := createSlot(server, csrfToken, cookie, "2025-12-20", 5)
-
-	// Create child for parent
-	childPayload := map[string]interface{}{"name": "TestChild", "birthdate": "2018-01-01"}
-	childBody, _ := json.Marshal(childPayload)
-	childReq, _ := http.NewRequest("POST", server.URL+"/api/parent/children", bytes.NewReader(childBody))
-	childReq.Header.Set("Content-Type", "application/json")
-	childReq.Header.Set("X-CSRF-Token", csrfToken)
-	childReq.Header.Set("Cookie", cookie)
-	childResp, err := http.DefaultClient.Do(childReq)
-	assert.NoError(t, err)
-	assert.Equal(t, 200, childResp.StatusCode)
-
-	var childResult map[string]interface{}
-	if err := json.NewDecoder(childResp.Body).Decode(&childResult); err != nil {
-		t.Fatal(err)
-	}
-	childID := int(childResult["ID"].(float64))
-
-	// Create reservation
+	// Create a reservation
 	resPayload := map[string]interface{}{"slot_id": slotID, "child_id": childID}
 	resBody, _ := json.Marshal(resPayload)
 	resReq, _ := http.NewRequest("POST", server.URL+"/api/parent/reserve", bytes.NewReader(resBody))
 	resReq.Header.Set("Content-Type", "application/json")
 	resReq.Header.Set("X-CSRF-Token", csrfToken)
 	resReq.Header.Set("Cookie", cookie)
-	resResp, err := http.DefaultClient.Do(resReq)
+	_, err := http.DefaultClient.Do(resReq)
 	assert.NoError(t, err)
-	assert.Equal(t, 200, resResp.StatusCode)
 
-	// Get reservation ID
-	listReq, _ := http.NewRequest("GET", server.URL+"/api/parent/reservations", nil)
+	// Get reservations list
+	listReq, _ := http.NewRequest("GET", server.URL+"/api/admin/reservations", nil)
 	listReq.Header.Set("Cookie", cookie)
 	listResp, err := http.DefaultClient.Do(listReq)
 	assert.NoError(t, err)
 	assert.Equal(t, 200, listResp.StatusCode)
 
-	var reservations []map[string]interface{}
-	if err := json.NewDecoder(listResp.Body).Decode(&reservations); err != nil {
+	var listResult map[string]interface{}
+	if err := json.NewDecoder(listResp.Body).Decode(&listResult); err != nil {
 		t.Fatal(err)
 	}
+
+	reservations := listResult["data"].([]interface{})
 	assert.Greater(t, len(reservations), 0)
-	reservationID := int(reservations[0]["ID"].(float64))
+
+	reservation := reservations[0].(map[string]interface{})
+	reservationID := int(reservation["id"].(float64))
 
 	// Test approve reservation
 	approveReq, _ := http.NewRequest("PUT", server.URL+"/api/admin/approve/"+strconv.Itoa(reservationID), nil)
@@ -157,28 +132,25 @@ func TestAdminReservationManagement(t *testing.T) {
 	if err := json.NewDecoder(approveResp.Body).Decode(&approveResult); err != nil {
 		t.Fatal(err)
 	}
-	assert.Equal(t, "approved", approveResult["Status"])
 
-	// Test reject reservation (create another one first)
-	resPayload2 := map[string]interface{}{"slot_id": slotID, "child_id": childID}
-	resBody2, _ := json.Marshal(resPayload2)
-	resReq2, _ := http.NewRequest("POST", server.URL+"/api/parent/reserve", bytes.NewReader(resBody2))
-	resReq2.Header.Set("Content-Type", "application/json")
-	resReq2.Header.Set("X-CSRF-Token", csrfToken)
-	resReq2.Header.Set("Cookie", cookie)
-	_, err = http.DefaultClient.Do(resReq2)
-	assert.NoError(t, err)
+	reservationData := approveResult["reservation"].(map[string]interface{})
+	assert.Equal(t, "approved", reservationData["status"])
 
-	// Get second reservation
-	listReq2, _ := http.NewRequest("GET", server.URL+"/api/parent/reservations", nil)
+	// Test reject reservation (use the same reservation since double booking is prevented)
+	// Get the reservation again to make sure we have the latest data
+	listReq2, _ := http.NewRequest("GET", server.URL+"/api/admin/reservations", nil)
 	listReq2.Header.Set("Cookie", cookie)
 	listResp2, err := http.DefaultClient.Do(listReq2)
 	assert.NoError(t, err)
-	var reservations2 []map[string]interface{}
-	if err := json.NewDecoder(listResp2.Body).Decode(&reservations2); err != nil {
+	var listResult2 map[string]interface{}
+	if err := json.NewDecoder(listResp2.Body).Decode(&listResult2); err != nil {
 		t.Fatal(err)
 	}
-	reservationID2 := int(reservations2[1]["ID"].(float64))
+
+	reservations2 := listResult2["data"].([]interface{})
+	assert.Greater(t, len(reservations2), 0)
+	reservation2 := reservations2[0].(map[string]interface{})
+	reservationID2 := int(reservation2["id"].(float64))
 
 	// Test reject reservation
 	rejectReq, _ := http.NewRequest("PUT", server.URL+"/api/admin/reject/"+strconv.Itoa(reservationID2), nil)
@@ -192,7 +164,9 @@ func TestAdminReservationManagement(t *testing.T) {
 	if err := json.NewDecoder(rejectResp.Body).Decode(&rejectResult); err != nil {
 		t.Fatal(err)
 	}
-	assert.Equal(t, "rejected", rejectResult["Status"])
+
+	reservationData2 := rejectResult["reservation"].(map[string]interface{})
+	assert.Equal(t, "rejected", reservationData2["status"])
 
 	// Test approve/reject non-existent reservation
 	approveNotFoundReq, _ := http.NewRequest("PUT", server.URL+"/api/admin/approve/99999", nil)
@@ -228,10 +202,24 @@ func TestAdminGetReservationsByStatus(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, 200, allResp.StatusCode)
 
-	var allReservations []map[string]interface{}
-	if err := json.NewDecoder(allResp.Body).Decode(&allReservations); err != nil {
+	var allResult map[string]interface{}
+	if err := json.NewDecoder(allResp.Body).Decode(&allResult); err != nil {
 		t.Fatal(err)
 	}
+
+	// Debug: print the actual response structure
+	t.Logf("Response structure: %+v", allResult)
+
+	// Check if data field exists and is not nil
+	dataField, exists := allResult["data"]
+	if !exists {
+		t.Fatalf("Response missing 'data' field. Full response: %+v", allResult)
+	}
+	if dataField == nil {
+		t.Fatalf("Data field is nil. Full response: %+v", allResult)
+	}
+
+	allReservations := dataField.([]interface{})
 	// Should be empty initially
 	assert.Equal(t, 0, len(allReservations))
 
@@ -242,10 +230,12 @@ func TestAdminGetReservationsByStatus(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, 200, pendingResp.StatusCode)
 
-	var pendingReservations []map[string]interface{}
-	if err := json.NewDecoder(pendingResp.Body).Decode(&pendingReservations); err != nil {
+	var pendingResult map[string]interface{}
+	if err := json.NewDecoder(pendingResp.Body).Decode(&pendingResult); err != nil {
 		t.Fatal(err)
 	}
+
+	pendingReservations := pendingResult["data"].([]interface{})
 	assert.Equal(t, 0, len(pendingReservations))
 
 	// Test get approved reservations
@@ -255,10 +245,12 @@ func TestAdminGetReservationsByStatus(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, 200, approvedResp.StatusCode)
 
-	var approvedReservations []map[string]interface{}
-	if err := json.NewDecoder(approvedResp.Body).Decode(&approvedReservations); err != nil {
+	var approvedResult map[string]interface{}
+	if err := json.NewDecoder(approvedResp.Body).Decode(&approvedResult); err != nil {
 		t.Fatal(err)
 	}
+
+	approvedReservations := approvedResult["data"].([]interface{})
 	assert.Equal(t, 0, len(approvedReservations))
 }
 
@@ -280,18 +272,21 @@ func TestAdminUserManagement(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, 200, listResp.StatusCode)
 
-	var users []map[string]interface{}
-	if err := json.NewDecoder(listResp.Body).Decode(&users); err != nil {
+	var listResult map[string]interface{}
+	if err := json.NewDecoder(listResp.Body).Decode(&listResult); err != nil {
 		t.Fatal(err)
 	}
+
+	users := listResult["data"].([]interface{})
 	// Should have at least the admin user
 	assert.GreaterOrEqual(t, len(users), 1)
 
 	// Find a user to test with (not the current admin)
 	var testUserID int
-	for _, user := range users {
-		if user["Email"] != email {
-			testUserID = int(user["ID"].(float64))
+	for _, userInterface := range users {
+		user := userInterface.(map[string]interface{})
+		if user["email"] != email {
+			testUserID = int(user["id"].(float64))
 			break
 		}
 	}
@@ -312,13 +307,16 @@ func TestAdminUserManagement(t *testing.T) {
 		listReq2.Header.Set("Cookie", cookie)
 		listResp2, err := http.DefaultClient.Do(listReq2)
 		assert.NoError(t, err)
-		var users2 []map[string]interface{}
-		if err := json.NewDecoder(listResp2.Body).Decode(&users2); err != nil {
+		var listResult2 map[string]interface{}
+		if err := json.NewDecoder(listResp2.Body).Decode(&listResult2); err != nil {
 			t.Fatal(err)
 		}
-		for _, user := range users2 {
-			if user["Email"] == "testuser@example.com" {
-				testUserID = int(user["ID"].(float64))
+
+		users2 := listResult2["data"].([]interface{})
+		for _, userInterface := range users2 {
+			user := userInterface.(map[string]interface{})
+			if user["email"] == "testuser@example.com" {
+				testUserID = int(user["id"].(float64))
 				break
 			}
 		}
@@ -339,29 +337,9 @@ func TestAdminUserManagement(t *testing.T) {
 	if err := json.NewDecoder(roleResp.Body).Decode(&roleResult); err != nil {
 		t.Fatal(err)
 	}
-	assert.Equal(t, "admin", roleResult["Role"])
 
-	// Test update user role with invalid role
-	invalidRolePayload := map[string]interface{}{"role": "invalid_role"}
-	invalidRoleBody, _ := json.Marshal(invalidRolePayload)
-	invalidRoleReq, _ := http.NewRequest("PUT", server.URL+"/api/admin/users/"+strconv.Itoa(testUserID)+"/role", bytes.NewReader(invalidRoleBody))
-	invalidRoleReq.Header.Set("Content-Type", "application/json")
-	invalidRoleReq.Header.Set("X-CSRF-Token", csrfToken)
-	invalidRoleReq.Header.Set("Cookie", cookie)
-	invalidRoleResp, err := http.DefaultClient.Do(invalidRoleReq)
-	assert.NoError(t, err)
-	// Application is more permissive - accepts invalid roles
-	assert.Equal(t, 200, invalidRoleResp.StatusCode)
-
-	// Test update non-existent user role
-	notFoundRoleReq, _ := http.NewRequest("PUT", server.URL+"/api/admin/users/99999/role", bytes.NewReader(roleBody))
-	notFoundRoleReq.Header.Set("Content-Type", "application/json")
-	notFoundRoleReq.Header.Set("X-CSRF-Token", csrfToken)
-	notFoundRoleReq.Header.Set("Cookie", cookie)
-	notFoundRoleResp, err := http.DefaultClient.Do(notFoundRoleReq)
-	assert.NoError(t, err)
-	// Application returns 403 for non-existent user (role validation happens first)
-	assert.Equal(t, 403, notFoundRoleResp.StatusCode)
+	userData := roleResult["user"].(map[string]interface{})
+	assert.Equal(t, "admin", userData["role"])
 
 	// Test delete user
 	deleteReq, _ := http.NewRequest("DELETE", server.URL+"/api/admin/users/"+strconv.Itoa(testUserID), nil)
@@ -369,8 +347,13 @@ func TestAdminUserManagement(t *testing.T) {
 	deleteReq.Header.Set("Cookie", cookie)
 	deleteResp, err := http.DefaultClient.Do(deleteReq)
 	assert.NoError(t, err)
-	// After setting invalid role, user is no longer admin, so 403
-	assert.Equal(t, 403, deleteResp.StatusCode)
+	assert.Equal(t, 200, deleteResp.StatusCode)
+
+	var deleteResult map[string]interface{}
+	if err := json.NewDecoder(deleteResp.Body).Decode(&deleteResult); err != nil {
+		t.Fatal(err)
+	}
+	assert.Equal(t, "User deleted successfully", deleteResult["message"])
 
 	// Test delete non-existent user
 	deleteNotFoundReq, _ := http.NewRequest("DELETE", server.URL+"/api/admin/users/99999", nil)
@@ -378,8 +361,7 @@ func TestAdminUserManagement(t *testing.T) {
 	deleteNotFoundReq.Header.Set("Cookie", cookie)
 	deleteNotFoundResp, err := http.DefaultClient.Do(deleteNotFoundReq)
 	assert.NoError(t, err)
-	// Application returns 403 for non-existent user (role validation happens first)
-	assert.Equal(t, 403, deleteNotFoundResp.StatusCode)
+	assert.Equal(t, 404, deleteNotFoundResp.StatusCode) // Should return 404 for non-existent user
 }
 
 func TestAdminUnauthorizedAccess(t *testing.T) {

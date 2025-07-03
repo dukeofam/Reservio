@@ -40,8 +40,8 @@ func TestRegister(t *testing.T) {
 	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
 		t.Fatal(err)
 	}
-	if result["message"] != "User registered" {
-		t.Fatalf("expected 'User registered', got %v", result["message"])
+	if result["message"] != "User registered successfully" {
+		t.Fatalf("expected 'User registered successfully', got %v", result["message"])
 	}
 }
 
@@ -76,7 +76,7 @@ func TestLogin_Success(t *testing.T) {
 	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
 		t.Fatal(err)
 	}
-	assert.Equal(t, "Logged in", result["message"])
+	assert.Equal(t, "Logged in successfully", result["message"])
 }
 
 func TestLogin_Failure(t *testing.T) {
@@ -144,8 +144,9 @@ func TestGetProfile(t *testing.T) {
 	if err := json.NewDecoder(getResp.Body).Decode(&profile); err != nil {
 		t.Fatal(err)
 	}
-	if profile["email"] != "profileuser@example.com" {
-		t.Fatalf("expected email 'profileuser@example.com', got %v", profile["email"])
+	user := profile["user"].(map[string]interface{})
+	if user["email"] != "profileuser@example.com" {
+		t.Fatalf("expected email 'profileuser@example.com', got %v", user["email"])
 	}
 }
 
@@ -170,7 +171,8 @@ func TestUserProfileEndpoints(t *testing.T) {
 	if err := json.NewDecoder(getResp.Body).Decode(&profile); err != nil {
 		t.Fatal(err)
 	}
-	assert.Equal(t, "profileuser@example.com", profile["email"])
+	user := profile["user"].(map[string]interface{})
+	assert.Equal(t, "profileuser@example.com", user["email"])
 
 	// Update profile
 	updatePayload := map[string]interface{}{"email": "profileuser2@example.com", "password": "newpassword123"}
@@ -190,7 +192,7 @@ func TestUserProfileEndpoints(t *testing.T) {
 	if err := json.NewDecoder(updateResp.Body).Decode(&updateResult); err != nil {
 		t.Fatal(err)
 	}
-	assert.Equal(t, "Profile updated", updateResult["message"])
+	assert.Equal(t, "Profile updated successfully", updateResult["message"])
 }
 
 func TestPasswordResetEndpoints(t *testing.T) {
@@ -276,7 +278,7 @@ func TestLogout(t *testing.T) {
 	if err := json.NewDecoder(logoutResp.Body).Decode(&logoutResult); err != nil {
 		t.Fatal(err)
 	}
-	assert.Equal(t, "Logged out", logoutResult["message"])
+	assert.Equal(t, "Logged out successfully", logoutResult["message"])
 
 	// Verify session is cleared by trying to access protected endpoint
 	profileReq, _ := http.NewRequest("GET", server.URL+"/api/user/profile", nil)
@@ -445,7 +447,7 @@ func TestRegister_DuplicateEmail(t *testing.T) {
 	}
 	resp2, err := http.DefaultClient.Do(req2)
 	assert.NoError(t, err)
-	assert.Equal(t, 500, resp2.StatusCode) // Should fail due to duplicate email
+	assert.Equal(t, 409, resp2.StatusCode) // Should fail due to duplicate email
 }
 
 func TestLogin_RateLimit(t *testing.T) {
@@ -510,18 +512,21 @@ func TestSlotsEndpoint(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, 200, slotsResp.StatusCode)
 
-	var slots []map[string]interface{}
-	if err := json.NewDecoder(slotsResp.Body).Decode(&slots); err != nil {
+	var slotsResult map[string]interface{}
+	if err := json.NewDecoder(slotsResp.Body).Decode(&slotsResult); err != nil {
 		t.Fatal(err)
 	}
+
+	slots := slotsResult["data"].([]interface{})
 	assert.GreaterOrEqual(t, len(slots), 1)
 
 	// Verify slot data
 	found := false
-	for _, slot := range slots {
-		if int(slot["ID"].(float64)) == slotID {
-			assert.Equal(t, "2025-12-25", slot["Date"])
-			assert.Equal(t, float64(8), slot["Capacity"])
+	for _, slotInterface := range slots {
+		slot := slotInterface.(map[string]interface{})
+		if int(slot["id"].(float64)) == slotID {
+			assert.Equal(t, "2025-12-25", slot["date"])
+			assert.Equal(t, float64(8), slot["capacity"])
 			found = true
 			break
 		}

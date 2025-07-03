@@ -1,6 +1,7 @@
 package utils
 
 import (
+	"encoding/json"
 	"log"
 	"net/http"
 	"os"
@@ -83,4 +84,47 @@ func RespondWithError(w http.ResponseWriter, code int, message string) {
 	w.WriteHeader(code)
 	jsonResp := []byte(`{"error": "` + message + `"}`)
 	_, _ = w.Write(jsonResp)
+}
+
+// RespondWithValidationError sends a JSON validation error response
+func RespondWithValidationError(w http.ResponseWriter, code int, validationErr ValidationError) {
+	log.Printf("[VALIDATION_ERROR] %s: %s", validationErr.Code, validationErr.Message)
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(code)
+
+	response := map[string]interface{}{
+		"error": validationErr.Message,
+		"code":  validationErr.Code,
+	}
+	if validationErr.Details != nil {
+		response["details"] = validationErr.Details
+	}
+
+	jsonResp, _ := json.Marshal(response)
+	_, _ = w.Write(jsonResp)
+}
+
+// RespondWithSuccess sends a JSON success response
+func RespondWithSuccess(w http.ResponseWriter, data interface{}) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	jsonResp, _ := json.Marshal(data)
+	_, _ = w.Write(jsonResp)
+}
+
+// RespondWithPaginatedData sends a JSON response with paginated data
+func RespondWithPaginatedData(w http.ResponseWriter, data interface{}, page, perPage, total int) {
+	totalPages := (total + perPage - 1) / perPage // Ceiling division
+
+	response := map[string]interface{}{
+		"data": data,
+		"pagination": map[string]interface{}{
+			"page":        page,
+			"per_page":    perPage,
+			"total":       total,
+			"total_pages": totalPages,
+		},
+	}
+
+	RespondWithSuccess(w, response)
 }

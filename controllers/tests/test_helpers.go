@@ -139,7 +139,8 @@ func createSlot(server *httptest.Server, csrfToken, cookie, date string, capacit
 	if err := json.NewDecoder(slotResp.Body).Decode(&slotResult); err != nil {
 		panic(err)
 	}
-	idVal, ok := slotResult["ID"]
+	slot := slotResult["slot"].(map[string]interface{})
+	idVal, ok := slot["id"]
 	if !ok || idVal == nil {
 		panic("createSlot: expected slot ID in response, got: " + fmt.Sprintf("%v", slotResult))
 	}
@@ -170,7 +171,8 @@ func createChild(server *httptest.Server, csrfToken, cookie, name string, age in
 	if err := json.NewDecoder(childResp.Body).Decode(&childResult); err != nil {
 		panic(err)
 	}
-	idVal, ok := childResult["ID"]
+	child := childResult["child"].(map[string]interface{})
+	idVal, ok := child["id"]
 	if !ok || idVal == nil {
 		panic("createChild: expected child ID in response, got: " + fmt.Sprintf("%v", childResult))
 	}
@@ -200,13 +202,16 @@ func createReservation(server *httptest.Server, csrfToken, cookie string, slotID
 		panic(err)
 	}
 	defer listResp.Body.Close()
-	var reservations []map[string]interface{}
-	if err := json.NewDecoder(listResp.Body).Decode(&reservations); err != nil {
+	var listResult map[string]interface{}
+	if err := json.NewDecoder(listResp.Body).Decode(&listResult); err != nil {
 		panic(err)
 	}
-	for _, r := range reservations {
-		if int(r["ChildID"].(float64)) == childID && int(r["SlotID"].(float64)) == slotID {
-			return int(r["ID"].(float64))
+
+	reservations := listResult["data"].([]interface{})
+	for _, rInterface := range reservations {
+		r := rInterface.(map[string]interface{})
+		if int(r["child_id"].(float64)) == childID && int(r["slot_id"].(float64)) == slotID {
+			return int(r["id"].(float64))
 		}
 	}
 	return 0 // Not found

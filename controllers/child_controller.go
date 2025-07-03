@@ -2,10 +2,12 @@ package controllers
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"reservio/config"
 	"reservio/middleware"
 	"reservio/models"
+	"reservio/utils"
 
 	"github.com/gorilla/mux"
 	"go.uber.org/zap"
@@ -18,108 +20,229 @@ func AddChild(w http.ResponseWriter, r *http.Request) {
 	}
 	var body ChildRequest
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
-		w.WriteHeader(http.StatusBadRequest)
-		_ = json.NewEncoder(w).Encode(map[string]string{"error": "Invalid input"})
+		utils.RespondWithValidationError(w, http.StatusBadRequest, utils.NewValidationError(utils.ErrInvalidInput, "Invalid JSON input", nil))
 		return
 	}
-	if body.Name == "" {
-		w.WriteHeader(http.StatusBadRequest)
-		_ = json.NewEncoder(w).Encode(map[string]string{"error": "Name is required"})
+
+	// Validate child data
+	if err := utils.ValidateChild(body.Name, body.Age); err != nil {
+		if validationErr, ok := err.(utils.ValidationError); ok {
+			utils.RespondWithValidationError(w, http.StatusBadRequest, validationErr)
+		} else {
+			utils.RespondWithError(w, http.StatusBadRequest, "Invalid child data")
+		}
 		return
 	}
+
 	userID, ok := r.Context().Value(middleware.UserIDKey).(uint)
 	if !ok {
-		w.WriteHeader(http.StatusUnauthorized)
-		_ = json.NewEncoder(w).Encode(map[string]string{"error": "Unauthorized"})
+		utils.RespondWithValidationError(w, http.StatusUnauthorized, utils.NewValidationError(utils.ErrUnauthorized, "Not authenticated", nil))
 		return
 	}
+
 	child := models.Child{Name: body.Name, Age: body.Age, ParentID: userID}
 	if err := config.DB.Create(&child).Error; err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		_ = json.NewEncoder(w).Encode(map[string]string{"error": "Failed to create child"})
+		zap.L().Error("Failed to create child", zap.Error(err))
+		utils.RespondWithError(w, http.StatusInternalServerError, "Failed to create child")
 		return
 	}
-	w.Header().Set("Content-Type", "application/json")
-	if err := json.NewEncoder(w).Encode(child); err != nil {
-		zap.L().Error("encode error", zap.Error(err))
-	}
+
+	utils.RespondWithSuccess(w, map[string]interface{}{
+		"message": "Child added successfully",
+		"child": map[string]interface{}{
+			"id":   child.ID,
+			"name": child.Name,
+			"age":  child.Age,
+		},
+	})
 }
 
 func GetChildren(w http.ResponseWriter, r *http.Request) {
 	userID, ok := r.Context().Value(middleware.UserIDKey).(uint)
 	if !ok {
-		w.WriteHeader(http.StatusUnauthorized)
-		_ = json.NewEncoder(w).Encode(map[string]string{"error": "Unauthorized"})
+		utils.RespondWithValidationError(w, http.StatusUnauthorized, utils.NewValidationError(utils.ErrUnauthorized, "Not authenticated", nil))
 		return
 	}
+
+	// Parse pagination parameters
+	page, perPage, err := utils.ParsePagination(r.URL.Query().Get("page"), r.URL.Query().Get("per_page"))
+	if err != nil {
+		if validationErr, ok := err.(utils.ValidationError); ok {
+			utils.RespondWithValidationError(w, http.StatusBadRequest, validationErr)
+		} else {
+			utils.RespondWithError(w, http.StatusBadRequest, "Invalid pagination parameters")
+		}
+		return
+	}
+
 	var children []models.Child
-	config.DB.Where("parent_id = ?", userID).Find(&children)
-	w.Header().Set("Content-Type", "application/json")
-	_ = json.NewEncoder(w).Encode(children)
+	var total int64
+
+	// Get total count
+	config.DB.Model(&models.Child{}).Where("parent_id = ?", userID).Count(&total)
+
+	// Get paginated results
+	offset := (page - 1) * perPage
+	if err := config.DB.Where("parent_id = ?", userID).Offset(offset).Limit(perPage).Find(&children).Error; err != nil {
+		zap.L().Error("Failed to get children", zap.Error(err))
+		utils.RespondWithError(w, http.StatusInternalServerError, "Failed to retrieve children")
+		return
+	}
+
+	// Convert to response format
+	var childrenData []map[string]interface{}
+	for _, child := range children {
+		childrenData = append(childrenData, map[string]interface{}{
+			"id":   child.ID,
+			"name": child.Name,
+			"age":  child.Age,
+		})
+	}
+
+	// Ensure we always return an empty array instead of nil
+	if childrenData == nil {
+		childrenData = []map[string]interface{}{}
+	}
+
+	utils.RespondWithPaginatedData(w, childrenData, page, perPage, int(total))
 }
 
 func EditChild(w http.ResponseWriter, r *http.Request) {
 	userID, ok := r.Context().Value(middleware.UserIDKey).(uint)
 	if !ok {
-		w.WriteHeader(http.StatusUnauthorized)
-		_ = json.NewEncoder(w).Encode(map[string]string{"error": "Unauthorized"})
+		utils.RespondWithValidationError(w, http.StatusUnauthorized, utils.NewValidationError(utils.ErrUnauthorized, "Not authenticated", nil))
 		return
 	}
+
 	vars := mux.Vars(r)
-	id := vars["id"]
-	var child models.Child
-	if err := config.DB.Where("parent_id = ? AND id = ?", userID, id).First(&child).Error; err != nil {
-		w.WriteHeader(http.StatusNotFound)
-		_ = json.NewEncoder(w).Encode(map[string]string{"error": "Child not found"})
+	childIDStr := vars["id"]
+	childID, err := utils.ParseUint(childIDStr)
+	if err != nil {
+		utils.RespondWithValidationError(w, http.StatusBadRequest, utils.NewValidationError(utils.ErrInvalidInput, "Invalid child ID", map[string]interface{}{
+			"child_id": childIDStr,
+		}))
 		return
 	}
+
+	// Validate child ownership using business logic
+	validator := utils.NewBusinessLogicValidator()
+	if err := validator.ValidateChildOwnership(childID, userID); err != nil {
+		if validationErr, ok := err.(utils.ValidationError); ok {
+			utils.RespondWithValidationError(w, http.StatusNotFound, validationErr)
+		} else {
+			utils.RespondWithError(w, http.StatusNotFound, "Child not found")
+		}
+		return
+	}
+
+	var child models.Child
+	if err := config.DB.Where("parent_id = ? AND id = ?", userID, childID).First(&child).Error; err != nil {
+		utils.RespondWithValidationError(w, http.StatusNotFound, utils.NewValidationError(utils.ErrChildNotFound, "Child not found", map[string]interface{}{
+			"child_id": childID,
+		}))
+		return
+	}
+
 	type Req struct {
 		Name string `json:"name"`
 		Age  int    `json:"age"`
 	}
 	var body Req
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
-		w.WriteHeader(http.StatusBadRequest)
-		_ = json.NewEncoder(w).Encode(map[string]string{"error": "Invalid input"})
+		utils.RespondWithValidationError(w, http.StatusBadRequest, utils.NewValidationError(utils.ErrInvalidInput, "Invalid JSON input", nil))
 		return
 	}
+
+	// Validate updated data
 	if body.Name != "" {
+		if err := utils.ValidateChild(body.Name, body.Age); err != nil {
+			if validationErr, ok := err.(utils.ValidationError); ok {
+				utils.RespondWithValidationError(w, http.StatusBadRequest, validationErr)
+			} else {
+				utils.RespondWithError(w, http.StatusBadRequest, "Invalid child data")
+			}
+			return
+		}
 		child.Name = body.Name
 	}
 	if body.Age != 0 {
+		if err := utils.ValidateChild(child.Name, body.Age); err != nil {
+			if validationErr, ok := err.(utils.ValidationError); ok {
+				utils.RespondWithValidationError(w, http.StatusBadRequest, validationErr)
+			} else {
+				utils.RespondWithError(w, http.StatusBadRequest, "Invalid child data")
+			}
+			return
+		}
 		child.Age = body.Age
 	}
+
 	if err := config.DB.Save(&child).Error; err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		_ = json.NewEncoder(w).Encode(map[string]string{"error": "Failed to update child"})
+		zap.L().Error("Failed to update child", zap.Error(err))
+		utils.RespondWithError(w, http.StatusInternalServerError, "Failed to update child")
 		return
 	}
-	w.Header().Set("Content-Type", "application/json")
-	if err := json.NewEncoder(w).Encode(child); err != nil {
-		zap.L().Error("encode error", zap.Error(err))
-	}
+
+	utils.RespondWithSuccess(w, map[string]interface{}{
+		"message": "Child updated successfully",
+		"child": map[string]interface{}{
+			"id":   child.ID,
+			"name": child.Name,
+			"age":  child.Age,
+		},
+	})
 }
 
 func DeleteChild(w http.ResponseWriter, r *http.Request) {
 	userID, ok := r.Context().Value(middleware.UserIDKey).(uint)
 	if !ok {
-		w.WriteHeader(http.StatusUnauthorized)
-		_ = json.NewEncoder(w).Encode(map[string]string{"error": "Unauthorized"})
+		utils.RespondWithValidationError(w, http.StatusUnauthorized, utils.NewValidationError(utils.ErrUnauthorized, "Not authenticated", nil))
 		return
 	}
+
 	vars := mux.Vars(r)
-	id := vars["id"]
-	result := config.DB.Where("parent_id = ? AND id = ?", userID, id).Delete(&models.Child{})
+	childIDStr := vars["id"]
+	childID, err := utils.ParseUint(childIDStr)
+	if err != nil {
+		utils.RespondWithValidationError(w, http.StatusBadRequest, utils.NewValidationError(utils.ErrInvalidInput, "Invalid child ID", map[string]interface{}{
+			"child_id": childIDStr,
+		}))
+		return
+	}
+
+	// Validate child ownership using business logic
+	validator := utils.NewBusinessLogicValidator()
+	if err := validator.ValidateChildOwnership(childID, userID); err != nil {
+		if validationErr, ok := err.(utils.ValidationError); ok {
+			utils.RespondWithValidationError(w, http.StatusNotFound, validationErr)
+		} else {
+			utils.RespondWithError(w, http.StatusNotFound, "Child not found")
+		}
+		return
+	}
+
+	result := config.DB.Where("parent_id = ? AND id = ?", userID, childID).Delete(&models.Child{})
 	if result.Error != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		_ = json.NewEncoder(w).Encode(map[string]string{"error": "Failed to delete child"})
+		zap.L().Error("Failed to delete child", zap.Error(result.Error))
+		utils.RespondWithError(w, http.StatusInternalServerError, "Failed to delete child")
 		return
 	}
 	if result.RowsAffected == 0 {
-		w.WriteHeader(http.StatusNotFound)
-		_ = json.NewEncoder(w).Encode(map[string]string{"error": "Child not found"})
+		utils.RespondWithValidationError(w, http.StatusNotFound, utils.NewValidationError(utils.ErrChildNotFound, "Child not found", map[string]interface{}{
+			"child_id": childID,
+		}))
 		return
 	}
-	w.Header().Set("Content-Type", "application/json")
-	_ = json.NewEncoder(w).Encode(map[string]string{"message": "Child deleted"})
+
+	utils.RespondWithSuccess(w, map[string]interface{}{
+		"message":  "Child deleted successfully",
+		"child_id": childID,
+	})
+}
+
+// Helper function to parse uint from string
+func parseUint(s string) (uint, error) {
+	var result uint
+	_, err := fmt.Sscanf(s, "%d", &result)
+	return result, err
 }
