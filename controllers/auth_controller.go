@@ -10,6 +10,7 @@ import (
 	"reservio/middleware"
 	"reservio/models"
 	"reservio/utils"
+	"strings"
 	"sync"
 	"time"
 
@@ -65,7 +66,7 @@ func Register(w http.ResponseWriter, r *http.Request) {
 
 	if result := config.DB.Create(&user); result.Error != nil {
 		// Check for duplicate email error
-		if result.Error.Error() == "ERROR: duplicate key value violates unique constraint \"users_email_key\" (SQLSTATE 23505)" {
+		if strings.Contains(result.Error.Error(), "duplicate key value") && strings.Contains(result.Error.Error(), "email") {
 			utils.RespondWithValidationError(w, http.StatusConflict, utils.NewValidationError(utils.ErrDuplicateEmail, "Email already registered", map[string]interface{}{
 				"email": body.Email,
 			}))
@@ -241,7 +242,7 @@ func UpdateProfile(w http.ResponseWriter, r *http.Request) {
 
 	if err := config.DB.Save(&user).Error; err != nil {
 		// Check for duplicate email error
-		if err.Error() == "ERROR: duplicate key value violates unique constraint \"users_email_key\" (SQLSTATE 23505)" {
+		if strings.Contains(err.Error(), "duplicate key value") && strings.Contains(err.Error(), "email") {
 			utils.RespondWithValidationError(w, http.StatusConflict, utils.NewValidationError(utils.ErrDuplicateEmail, "Email already in use", map[string]interface{}{
 				"email": body.Email,
 			}))
