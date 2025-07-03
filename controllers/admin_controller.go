@@ -7,6 +7,7 @@ import (
 	"reservio/models"
 
 	"github.com/gorilla/mux"
+	"go.uber.org/zap"
 )
 
 func CreateSlot(w http.ResponseWriter, r *http.Request) {
@@ -27,7 +28,7 @@ func CreateSlot(w http.ResponseWriter, r *http.Request) {
 	}
 	w.Header().Set("Content-Type", "application/json")
 	if err := json.NewEncoder(w).Encode(slot); err != nil {
-		// Optionally log or handle the error
+		zap.L().Error("encode error", zap.Error(err))
 	}
 }
 
@@ -48,7 +49,7 @@ func ApproveReservation(w http.ResponseWriter, r *http.Request) {
 	}
 	w.Header().Set("Content-Type", "application/json")
 	if err := json.NewEncoder(w).Encode(reservation); err != nil {
-		// Optionally log or handle the error
+		zap.L().Error("encode error", zap.Error(err))
 	}
 }
 
@@ -69,7 +70,7 @@ func RejectReservation(w http.ResponseWriter, r *http.Request) {
 	}
 	w.Header().Set("Content-Type", "application/json")
 	if err := json.NewEncoder(w).Encode(reservation); err != nil {
-		// Optionally log or handle the error
+		zap.L().Error("encode error", zap.Error(err))
 	}
 }
 
@@ -83,7 +84,7 @@ func GetReservationsByStatus(w http.ResponseWriter, r *http.Request) {
 	}
 	w.Header().Set("Content-Type", "application/json")
 	if err := json.NewEncoder(w).Encode(reservations); err != nil {
-		// Optionally log or handle the error
+		zap.L().Error("encode error", zap.Error(err))
 	}
 }
 
@@ -92,7 +93,7 @@ func ListUsers(w http.ResponseWriter, r *http.Request) {
 	config.DB.Find(&users)
 	w.Header().Set("Content-Type", "application/json")
 	if err := json.NewEncoder(w).Encode(users); err != nil {
-		// Optionally log or handle the error
+		zap.L().Error("encode error", zap.Error(err))
 	}
 }
 
@@ -106,7 +107,7 @@ func DeleteUser(w http.ResponseWriter, r *http.Request) {
 	}
 	w.Header().Set("Content-Type", "application/json")
 	if err := json.NewEncoder(w).Encode(map[string]string{"message": "User deleted"}); err != nil {
-		// Optionally log or handle the error
+		zap.L().Error("encode error", zap.Error(err))
 	}
 }
 
@@ -135,6 +136,6 @@ func UpdateUserRole(w http.ResponseWriter, r *http.Request) {
 	}
 	w.Header().Set("Content-Type", "application/json")
 	if err := json.NewEncoder(w).Encode(user); err != nil {
-		// Optionally log or handle the error
+		zap.L().Error("encode error", zap.Error(err))
 	}
 }

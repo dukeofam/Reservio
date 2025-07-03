@@ -8,6 +8,7 @@ import (
 	"reservio/models"
 
 	"github.com/gorilla/mux"
+	"go.uber.org/zap"
 )
 
 func AddChild(w http.ResponseWriter, r *http.Request) {
@@ -40,7 +41,7 @@ func AddChild(w http.ResponseWriter, r *http.Request) {
 	}
 	w.Header().Set("Content-Type", "application/json")
 	if err := json.NewEncoder(w).Encode(child); err != nil {
-		// Optionally log or handle the error
+		zap.L().Error("encode error", zap.Error(err))
 	}
 }
 
@@ -95,7 +96,7 @@ func EditChild(w http.ResponseWriter, r *http.Request) {
 	}
 	w.Header().Set("Content-Type", "application/json")
 	if err := json.NewEncoder(w).Encode(child); err != nil {
-		// Optionally log or handle the error
+		zap.L().Error("encode error", zap.Error(err))
 	}
 }
 

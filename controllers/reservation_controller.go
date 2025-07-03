@@ -8,6 +8,7 @@ import (
 	"reservio/models"
 
 	"github.com/gorilla/mux"
+	"go.uber.org/zap"
 )
 
 func MakeReservation(w http.ResponseWriter, r *http.Request) {
@@ -38,7 +39,7 @@ func MakeReservation(w http.ResponseWriter, r *http.Request) {
 	}
 	w.Header().Set("Content-Type", "application/json")
 	if err := json.NewEncoder(w).Encode(map[string]string{"message": "Reservation requested"}); err != nil {
-		// Optionally log or handle the error
+		zap.L().Error("encode error", zap.Error(err))
 	}
 }
 

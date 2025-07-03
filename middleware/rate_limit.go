@@ -6,6 +6,7 @@ import (
 	"os"
 	"sync"
 
+	"go.uber.org/zap"
 	"golang.org/x/time/rate"
 )
 
@@ -76,7 +77,7 @@ func RateLimitMiddleware(next http.Handler) http.Handler {
 			if err := json.NewEncoder(w).Encode(map[string]string{
 				"error": "Rate limit exceeded. Please try again later.",
 			}); err != nil {
-				// Optionally log or handle the error
+				zap.L().Error("encode error", zap.Error(err))
 			}
 			return
 		}
