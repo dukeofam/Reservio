@@ -16,7 +16,8 @@ func SetupRouter() *mux.Router {
 	// Global middlewares
 	r.Use(middleware.LoggingMiddleware)
 	r.Use(middleware.MetricsMiddleware)
-	// SecurityHeadersMiddleware will be added in a later stage
+	r.Use(middleware.SecurityHeadersMiddleware)
+	r.Use(middleware.RateLimitMiddleware)
 
 	r.Handle("/metrics", promhttp.Handler()).Methods("GET")
 

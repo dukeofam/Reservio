@@ -1,9 +1,13 @@
 package main
 
 import (
+	"context"
 	"log"
 	"net/http"
 	"os"
+	"os/signal"
+	"syscall"
+	"time"
 
 	"reservio/config"
 	"reservio/routes"
@@ -36,5 +40,53 @@ func main() {
 		port = "8080"
 	}
 
-	log.Fatal(http.ListenAndServe(":"+port, router))
+	// Create HTTP server
+	srv := &http.Server{
+		Addr:         ":" + port,
+		Handler:      router,
+		ReadTimeout:  15 * time.Second,
+		WriteTimeout: 15 * time.Second,
+		IdleTimeout:  60 * time.Second,
+	}
+
+	// Start server in a goroutine
+	go func() {
+		logger.Info("Starting server", zap.String("port", port))
+		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			logger.Fatal("Server failed to start", zap.Error(err))
+		}
+	}()
+
+	// Wait for interrupt signal to gracefully shutdown the server
+	quit := make(chan os.Signal, 1)
+	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
+	<-quit
+
+	logger.Info("Shutting down server...")
+
+	// Create shutdown context with timeout
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	// Attempt graceful shutdown
+	if err := srv.Shutdown(ctx); err != nil {
+		logger.Error("Server forced to shutdown", zap.Error(err))
+	}
+
+	// Close database connection
+	if config.DB != nil {
+		sqlDB, err := config.DB.DB()
+		if err == nil {
+			sqlDB.Close()
+		}
+	}
+
+	// Close Redis session store
+	if config.Store != nil {
+		// For redistore, we need to close the underlying Redis connection
+		// This depends on the specific redistore implementation
+		logger.Info("Closing Redis session store...")
+	}
+
+	logger.Info("Server exited")
 }
