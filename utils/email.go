@@ -17,10 +17,10 @@ var (
 
 // NOTE: In production, SendMail should be mocked in tests to avoid sending real emails.
 func SendMail(to, subject, body string) error {
-	// Skip real SMTP in test mode
+	// Skip real SMTP in test mode but return a dummy error so callers can assert failure without sending mail
 	if os.Getenv("TEST_MODE") == "1" {
 		log.Printf("[SendMail] Test mode - skipping real email to %s: %s", to, subject)
-		return nil
+		return fmt.Errorf("send mail skipped in test mode")
 	}
 
 	from := SMTPUser
