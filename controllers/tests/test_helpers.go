@@ -101,14 +101,17 @@ func registerAndLogin(server *httptest.Server, email, password, csrfToken, cooki
 		panic(err)
 	}
 	defer getResp.Body.Close()
-	csrfToken = getResp.Header.Get("X-CSRF-Token")
+
+	// Get fresh CSRF token from the response
+	freshCSRFToken := getResp.Header.Get("X-CSRF-Token")
+
 	// Update cookie with any new Set-Cookie header (session now contains csrf_token)
 	for _, c := range getResp.Cookies() {
 		if c.Name == "session" {
 			cookie = c.Name + "=" + c.Value
 		}
 	}
-	return csrfToken, cookie
+	return freshCSRFToken, cookie
 }
 
 func createSlot(server *httptest.Server, csrfToken, cookie, date string, capacity int) int {
