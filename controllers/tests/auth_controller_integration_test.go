@@ -127,7 +127,6 @@ func TestGetProfile(t *testing.T) {
 	server := setupTestApp()
 	defer server.Close()
 	initToken, initCookie := getCSRFTokenAndCookie(server)
-	fmt.Printf("csrfToken: %s, cookie: %s\n", initToken, initCookie)
 	_, cookie := registerAndLogin(server, "profileuser@example.com", "testpassword123", initToken, initCookie)
 
 	getReq, _ := http.NewRequest("GET", server.URL+"/api/user/profile", nil)
@@ -154,8 +153,8 @@ func TestUserProfileEndpoints(t *testing.T) {
 	server := setupTestApp()
 	defer server.Close()
 	initToken, initCookie := getCSRFTokenAndCookie(server)
-	fmt.Printf("csrfToken: %s, cookie: %s\n", initToken, initCookie)
 	csrfToken, cookie := registerAndLogin(server, "profileuser@example.com", "testpassword123", initToken, initCookie)
+	fmt.Printf("csrfToken: %s, cookie: %s\n", csrfToken, cookie)
 
 	// Get profile
 	getReq, _ := http.NewRequest("GET", server.URL+"/api/user/profile", nil)
@@ -201,7 +200,7 @@ func TestPasswordResetEndpoints(t *testing.T) {
 	server := setupTestApp()
 	defer server.Close()
 	csrfToken, cookie := getCSRFTokenAndCookie(server)
-	registerAndLogin(server, "resetuser@example.com", "testpassword123", csrfToken, cookie)
+	csrfToken, cookie = registerAndLogin(server, "resetuser@example.com", "testpassword123", csrfToken, cookie)
 
 	// Request password reset
 	resetPayload := map[string]interface{}{"email": "resetuser@example.com"}
@@ -297,7 +296,7 @@ func TestResetPassword(t *testing.T) {
 	csrfToken, cookie := getCSRFTokenAndCookie(server)
 	email := "resetuser2@example.com"
 	password := "testpassword123"
-	registerAndLogin(server, email, password, csrfToken, cookie)
+	csrfToken, cookie = registerAndLogin(server, email, password, csrfToken, cookie)
 
 	// Request password reset
 	resetPayload := map[string]interface{}{"email": email}
@@ -358,7 +357,7 @@ func TestRequestPasswordReset_InvalidEmail(t *testing.T) {
 	server := setupTestApp()
 	defer server.Close()
 	csrfToken, cookie := getCSRFTokenAndCookie(server)
-	registerAndLogin(server, "resetuser3@example.com", "testpassword123", csrfToken, cookie)
+	csrfToken, cookie = registerAndLogin(server, "resetuser3@example.com", "testpassword123", csrfToken, cookie)
 
 	// Test with invalid email format
 	invalidEmailPayload := map[string]interface{}{"email": "notanemail"}
@@ -561,7 +560,7 @@ func TestCSRFProtection(t *testing.T) {
 	csrfToken, cookie := getCSRFTokenAndCookie(server)
 	email := "csrfuser@example.com"
 	password := "testpassword123"
-	csrfToken, cookie = registerAndLogin(server, email, password, csrfToken, cookie)
+	_, cookie = registerAndLogin(server, email, password, csrfToken, cookie)
 
 	// Test POST request without CSRF token
 	payload := map[string]string{"email": "test@example.com", "password": "testpassword123"}

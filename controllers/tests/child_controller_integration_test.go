@@ -15,8 +15,8 @@ func TestChildEndpoints(t *testing.T) {
 	server := setupTestApp()
 	defer server.Close()
 	csrfToken, cookie := getCSRFTokenAndCookie(server)
-	fmt.Printf("csrfToken: %s, cookie: %s\n", csrfToken, cookie)
 	csrfToken, cookie = registerAndLogin(server, "childparent+1@example.com", "testpassword123", csrfToken, cookie)
+	fmt.Printf("csrfToken: %s, cookie: %s\n", csrfToken, cookie)
 
 	// Ensure user is parent in DB
 	config.DB.Model(&models.User{}).Where("email = ?", "childparent+1@example.com").Update("role", "parent")
@@ -48,8 +48,8 @@ func TestAddGetEditDeleteChild(t *testing.T) {
 	server := setupTestApp()
 	defer server.Close()
 	csrfToken, cookie := getCSRFTokenAndCookie(server)
-	fmt.Printf("csrfToken: %s, cookie: %s\n", csrfToken, cookie)
 	csrfToken, cookie = registerAndLogin(server, "childparent+1@example.com", "testpassword123", csrfToken, cookie)
+	fmt.Printf("csrfToken: %s, cookie: %s\n", csrfToken, cookie)
 
 	// Ensure user is parent in DB
 	config.DB.Model(&models.User{}).Where("email = ?", "childparent+1@example.com").Update("role", "parent")
