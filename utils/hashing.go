@@ -55,7 +55,7 @@ func SetSession(w http.ResponseWriter, r *http.Request, userID uint) {
 	session, _ := config.Store.Get(r, "session")
 
 	// Persist user_id and session_version
-	session.Values["user_id"] = strconv.Itoa(int(userID))
+	session.Values["user_id"] = strconv.FormatUint(uint64(userID), 10)
 
 	// Default session_version to 1; overwrite with DB value only if DB is available
 	session.Values["session_version"] = "1"

@@ -33,12 +33,13 @@ func Protected(next http.Handler) http.Handler {
 			}
 			return
 		}
-		id, err := strconv.Atoi(idStr)
+		id64, err := strconv.ParseUint(idStr, 10, 64)
 		if err != nil {
 			log.Printf("[Protected] Invalid user_id in session: %v", idStr)
 			utils.RespondWithValidationError(w, http.StatusUnauthorized, utils.NewValidationError(utils.ErrUnauthorized, "Invalid user ID", nil))
 			return
 		}
+		id := uint(id64)
 		// Compare session_version
 		svStr, _ := session.Values["session_version"].(string)
 		var usr models.User
@@ -51,7 +52,7 @@ func Protected(next http.Handler) http.Handler {
 			}
 		}
 		log.Printf("[Protected] Authenticated user_id: %d", id)
-		ctx := context.WithValue(r.Context(), UserIDKey, uint(id))
+		ctx := context.WithValue(r.Context(), UserIDKey, id)
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
 }
