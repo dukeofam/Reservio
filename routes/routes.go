@@ -41,6 +41,7 @@ func SetupRouter() *mux.Router {
 	refresh.Use(middleware.Protected)
 	refresh.Use(middleware.CSRFMiddleware)
 	refresh.HandleFunc("/refresh", controllers.RefreshSession).Methods("POST")
+	refresh.HandleFunc("/logout-all", controllers.LogoutAll).Methods("POST")
 
 	parent := api.PathPrefix("/parent").Subrouter()
 	parent.Use(middleware.Protected)

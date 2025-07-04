@@ -39,6 +39,17 @@ func Protected(next http.Handler) http.Handler {
 			utils.RespondWithValidationError(w, http.StatusUnauthorized, utils.NewValidationError(utils.ErrUnauthorized, "Invalid user ID", nil))
 			return
 		}
+		// Compare session_version
+		svStr, _ := session.Values["session_version"].(string)
+		var usr models.User
+		if err := config.DB.Select("session_version").First(&usr, id).Error; err == nil {
+			if svStr == "" || svStr != strconv.Itoa(usr.SessionVersion) {
+				log.Printf("[Protected] Session version mismatch: cookie=%s db=%d", svStr, usr.SessionVersion)
+				utils.ClearSession(w, r)
+				utils.RespondWithValidationError(w, http.StatusUnauthorized, utils.NewValidationError(utils.ErrUnauthorized, "Session expired, please log in again", nil))
+				return
+			}
+		}
 		log.Printf("[Protected] Authenticated user_id: %d", id)
 		ctx := context.WithValue(r.Context(), UserIDKey, uint(id))
 		next.ServeHTTP(w, r.WithContext(ctx))

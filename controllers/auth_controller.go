@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"golang.org/x/crypto/bcrypt"
+	"gorm.io/gorm"
 )
 
 func generateResetToken() string {
@@ -256,6 +257,7 @@ func UpdateProfile(w http.ResponseWriter, r *http.Request) {
 		}
 		hash, _ := bcrypt.GenerateFromPassword([]byte(body.Password), 14)
 		user.Password = string(hash)
+		user.SessionVersion++ // invalidate other sessions
 	}
 
 	if err := config.DB.Save(&user).Error; err != nil {
@@ -381,6 +383,7 @@ func ResetPassword(w http.ResponseWriter, r *http.Request) {
 
 	hash, _ := bcrypt.GenerateFromPassword([]byte(body.Password), 14)
 	user.Password = string(hash)
+	user.SessionVersion++ // invalidate other sessions
 	if err := config.DB.Save(&user).Error; err != nil {
 		utils.RespondWithError(w, http.StatusInternalServerError, "Failed to reset password")
 		return
@@ -393,5 +396,27 @@ func ResetPassword(w http.ResponseWriter, r *http.Request) {
 
 	utils.RespondWithSuccess(w, map[string]interface{}{
 		"message": "Password reset successful",
+	})
+}
+
+// LogoutAll invalidates all sessions for the current user by bumping session_version
+// and clearing the current session cookie.
+func LogoutAll(w http.ResponseWriter, r *http.Request) {
+	userID, ok := r.Context().Value(middleware.UserIDKey).(uint)
+	if !ok {
+		utils.RespondWithValidationError(w, http.StatusUnauthorized, utils.NewValidationError(utils.ErrUnauthorized, "Not authenticated", nil))
+		return
+	}
+
+	// Increment session_version to force all other cookies invalid
+	if err := config.DB.Model(&models.User{}).Where("id = ?", userID).UpdateColumn("session_version", gorm.Expr("session_version + 1")).Error; err != nil {
+		utils.RespondWithError(w, http.StatusInternalServerError, "Failed to logout from all devices")
+		return
+	}
+
+	utils.InvalidateAllUserSessions(w, r)
+
+	utils.RespondWithSuccess(w, map[string]interface{}{
+		"message": "Logged out from all devices",
 	})
 }

@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"os"
 	"reservio/config"
+	"reservio/utils"
 	"time"
 )
 
@@ -62,9 +63,7 @@ func CSRFMiddleware(next http.Handler) http.Handler {
 
 			if requestToken != token {
 				log.Printf("[CSRF] Invalid CSRF token: got=%s expected=%s", requestToken, token)
-				w.Header().Set("Content-Type", "application/json")
-				w.WriteHeader(http.StatusForbidden)
-				_, _ = w.Write([]byte(`{"error": "Invalid CSRF token"}`))
+				utils.RespondWithValidationError(w, http.StatusForbidden, utils.NewValidationError("CSRF_INVALID", "Invalid CSRF token", nil))
 				return
 			}
 

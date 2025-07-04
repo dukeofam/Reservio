@@ -1,6 +1,8 @@
 package utils
 
 import (
+	"crypto/rand"
+	"encoding/base64"
 	"encoding/json"
 	"log"
 	"net/http"
@@ -9,9 +11,8 @@ import (
 	"sync"
 	"time"
 
-	"crypto/rand"
-	"encoding/base64"
 	"reservio/config"
+	"reservio/models"
 
 	"github.com/gorilla/sessions"
 )
@@ -52,7 +53,18 @@ func GetLoginAttempt(email string) LoginAttempt {
 // Session helpers for gorilla/sessions
 func SetSession(w http.ResponseWriter, r *http.Request, userID uint) {
 	session, _ := config.Store.Get(r, "session")
+
+	// Persist user_id and session_version
 	session.Values["user_id"] = strconv.Itoa(int(userID))
+
+	// Default session_version to 1; overwrite with DB value only if DB is available
+	session.Values["session_version"] = "1"
+	if config.DB != nil {
+		var usr models.User
+		if err := config.DB.Select("session_version").First(&usr, userID).Error; err == nil {
+			session.Values["session_version"] = strconv.Itoa(usr.SessionVersion)
+		}
+	}
 
 	// Ensure we have a CSRF token for this new/updated session
 	token, _ := session.Values["csrf_token"].(string)

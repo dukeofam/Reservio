@@ -1,12 +1,12 @@
 package middleware
 
 import (
-	"encoding/json"
 	"net/http"
 	"os"
 	"sync"
 
-	"go.uber.org/zap"
+	"reservio/utils"
+
 	"golang.org/x/time/rate"
 )
 
@@ -72,13 +72,7 @@ func RateLimitMiddleware(next http.Handler) http.Handler {
 
 		// Check if request is allowed
 		if !limiter.Allow() {
-			w.Header().Set("Content-Type", "application/json")
-			w.WriteHeader(http.StatusTooManyRequests)
-			if err := json.NewEncoder(w).Encode(map[string]string{
-				"error": "Rate limit exceeded. Please try again later.",
-			}); err != nil {
-				zap.L().Error("encode error", zap.Error(err))
-			}
+			utils.RespondWithValidationError(w, http.StatusTooManyRequests, utils.NewValidationError("RATE_LIMIT_EXCEEDED", "Rate limit exceeded. Please try again later.", nil))
 			return
 		}
 
