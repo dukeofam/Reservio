@@ -15,6 +15,7 @@ import (
 	"reservio/models"
 
 	"github.com/gorilla/sessions"
+	"go.uber.org/zap"
 )
 
 // Brute-force login attempt tracker (in-memory, can be replaced with Redis)
@@ -85,7 +86,7 @@ func SetSession(w http.ResponseWriter, r *http.Request, userID uint) {
 		SameSite: http.SameSiteStrictMode,
 	}
 	if err := session.Save(r, w); err != nil {
-		log.Printf("[SetSession] session.Save error: %v", err)
+		zap.L().Warn("SetSession save error", zap.Error(err))
 	}
 
 	// Expose CSRF token to the client so it can be stored
@@ -97,7 +98,7 @@ func ClearSession(w http.ResponseWriter, r *http.Request) {
 	delete(session.Values, "user_id")
 	session.Options.MaxAge = -1
 	if err := session.Save(r, w); err != nil {
-		log.Printf("[ClearSession] session.Save error: %v", err)
+		zap.L().Warn("ClearSession save error", zap.Error(err))
 	}
 }
 

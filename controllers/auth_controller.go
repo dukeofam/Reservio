@@ -4,7 +4,6 @@ import (
 	"crypto/rand"
 	"encoding/base64"
 	"encoding/json"
-	"log"
 	"net/http"
 	"reservio/config"
 	"reservio/middleware"
@@ -13,6 +12,7 @@ import (
 	"strings"
 	"time"
 
+	"go.uber.org/zap"
 	"golang.org/x/crypto/bcrypt"
 	"gorm.io/gorm"
 )
@@ -123,7 +123,7 @@ func Login(w http.ResponseWriter, r *http.Request) {
 	var user models.User
 	if err := config.DB.Where("email = ?", body.Email).First(&user).Error; err != nil {
 		utils.IncrementLoginAttempt(body.Email)
-		log.Printf("[Login] Invalid credentials for email: %s", body.Email)
+		zap.L().Debug("Invalid credentials", zap.String("email", body.Email))
 		utils.RespondWithValidationError(w, http.StatusUnauthorized, utils.NewValidationError(utils.ErrUnauthorized, "Invalid credentials", nil))
 		return
 	}
@@ -186,7 +186,7 @@ func GetProfile(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	log.Printf("[GetProfile] userID from context: %d", userID)
+	zap.L().Debug("GetProfile", zap.Uint("user_id", userID))
 	var user models.User
 	if err := config.DB.First(&user, userID).Error; err != nil {
 		utils.RespondWithValidationError(w, http.StatusNotFound, utils.NewValidationError(utils.ErrNotFound, "User not found", map[string]interface{}{
@@ -195,7 +195,7 @@ func GetProfile(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	log.Printf("[GetProfile] user: email=%s, role=%s", user.Email, user.Role)
+	zap.L().Debug("GetProfile user", zap.String("email", user.Email), zap.String("role", user.Role))
 	user.Password = "" // Don't send password in response
 
 	utils.RespondWithSuccess(w, map[string]interface{}{
@@ -329,8 +329,7 @@ func RequestPasswordReset(w http.ResponseWriter, r *http.Request) {
 
 	resetLink := "http://localhost:3000/reset-password?token=" + token
 	if err := utils.SendMail(user.Email, "Password Reset", "Reset your password: "+resetLink); err != nil {
-		log.Printf("[RequestPasswordReset] Failed to send email: %v", err)
-		// Don't fail the request if email fails, just log it
+		zap.L().Warn("Failed to send reset email", zap.Error(err))
 	}
 
 	utils.RespondWithSuccess(w, map[string]interface{}{

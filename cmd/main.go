@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 
@@ -25,13 +26,22 @@ func main() {
 	config.ConnectDatabase()
 	config.InitSessionStore()
 
-	logger, _ := zap.NewProduction()
+	// Configure zap logger based on LOG_LEVEL (debug|info|warn|error)
+	level := zap.InfoLevel
+	switch strings.ToLower(os.Getenv("LOG_LEVEL")) {
+	case "debug":
+		level = zap.DebugLevel
+	case "warn":
+		level = zap.WarnLevel
+	case "error":
+		level = zap.ErrorLevel
+	}
+
+	cfg := zap.NewProductionConfig()
+	cfg.Level = zap.NewAtomicLevelAt(level)
+	logger, _ := cfg.Build()
 	zap.ReplaceGlobals(logger)
-	defer func() {
-		if err := logger.Sync(); err != nil {
-			log.Printf("zap sync error: %v", err)
-		}
-	}()
+	defer func() { _ = logger.Sync() }()
 
 	router := routes.SetupRouter()
 

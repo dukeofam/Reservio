@@ -3,12 +3,13 @@ package middleware
 import (
 	"crypto/rand"
 	"encoding/base64"
-	"log"
 	"net/http"
 	"os"
 	"reservio/config"
 	"reservio/utils"
 	"time"
+
+	"go.uber.org/zap"
 )
 
 func generateCSRFToken() string {
@@ -28,8 +29,8 @@ func CSRFMiddleware(next http.Handler) http.Handler {
 
 		// Log session state for debugging
 		if os.Getenv("TEST_MODE") == "1" {
-			log.Printf("[CSRF] Session values: %#v", session.Values)
-			log.Printf("[CSRF] Current token: %s, expiry: %d, now: %d", token, expiry, now)
+			zap.L().Debug("CSRF session", zap.Any("values", session.Values))
+			zap.L().Debug("CSRF token", zap.String("token", token), zap.Int64("expiry", expiry), zap.Int64("now", now))
 		}
 
 		if token == "" || expiry == 0 || now > expiry {
@@ -38,14 +39,14 @@ func CSRFMiddleware(next http.Handler) http.Handler {
 			session.Values["csrf_token_expiry"] = now + 7200 // 2 hours
 			_ = session.Save(r, w)
 			if os.Getenv("TEST_MODE") == "1" {
-				log.Printf("[CSRF] Generated new token: %s", token)
+				zap.L().Debug("CSRF generated token", zap.String("token", token))
 			}
 		}
 
 		// Always set CSRF token in header in test mode
 		if os.Getenv("TEST_MODE") == "1" {
 			w.Header().Set("X-CSRF-Token", token)
-			log.Printf("[CSRF] Set token in header: %s", token)
+			zap.L().Debug("CSRF set header", zap.String("token", token))
 		}
 
 		if r.Method == http.MethodPost || r.Method == http.MethodPut || r.Method == http.MethodDelete {
@@ -58,17 +59,17 @@ func CSRFMiddleware(next http.Handler) http.Handler {
 			}
 
 			if os.Getenv("TEST_MODE") == "1" {
-				log.Printf("[CSRF] Validating token - request: %s, session: %s", requestToken, token)
+				zap.L().Debug("CSRF validating", zap.String("request", requestToken), zap.String("session", token))
 			}
 
 			if requestToken != token {
-				log.Printf("[CSRF] Invalid CSRF token: got=%s expected=%s", requestToken, token)
+				zap.L().Debug("CSRF invalid token", zap.String("got", requestToken), zap.String("expected", token))
 				utils.RespondWithValidationError(w, http.StatusForbidden, utils.NewValidationError("CSRF_INVALID", "Invalid CSRF token", nil))
 				return
 			}
 
 			if os.Getenv("TEST_MODE") == "1" {
-				log.Printf("[CSRF] Token validation successful")
+				zap.L().Debug("CSRF token validation successful")
 			}
 		}
 		next.ServeHTTP(w, r)
@@ -81,7 +82,7 @@ func RegenerateCSRFToken(w http.ResponseWriter, r *http.Request) error {
 	session.Values["csrf_token"] = token
 	session.Values["csrf_token_expiry"] = time.Now().Unix() + 7200 // 2 hours
 	if err := session.Save(r, w); err != nil {
-		log.Printf("[CSRF] sess.Save error: %v", err)
+		zap.L().Warn("CSRF sess.Save error", zap.Error(err))
 		return err
 	}
 	// Always expose the fresh token so the frontend can store it

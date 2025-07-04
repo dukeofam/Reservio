@@ -2,7 +2,6 @@ package middleware
 
 import (
 	"context"
-	"log"
 	"net/http"
 	"strconv"
 	"strings"
@@ -10,6 +9,8 @@ import (
 	"reservio/config"
 	"reservio/models"
 	"reservio/utils"
+
+	"go.uber.org/zap"
 )
 
 // ContextKey is a type for context keys used in request context
@@ -22,10 +23,10 @@ const UserIDKey ContextKey = "user_id"
 func Protected(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		session, _ := config.Store.Get(r, "session")
-		log.Printf("[Protected] session.Values: %#v", session.Values)
+		zap.L().Debug("Protected session", zap.Any("values", session.Values))
 		idStr, ok := session.Values["user_id"].(string)
 		if !ok || idStr == "" {
-			log.Printf("[Protected] No user_id in session: %#v", session.Values)
+			zap.L().Debug("Protected no user_id", zap.Any("values", session.Values))
 			if strings.HasPrefix(r.URL.Path, "/api/admin/") {
 				utils.RespondWithValidationError(w, http.StatusNotFound, utils.NewValidationError(utils.ErrNotFound, "Resource not found", nil))
 			} else {
@@ -35,7 +36,7 @@ func Protected(next http.Handler) http.Handler {
 		}
 		id64, err := strconv.ParseUint(idStr, 10, 64)
 		if err != nil {
-			log.Printf("[Protected] Invalid user_id in session: %v", idStr)
+			zap.L().Debug("Protected invalid user_id", zap.String("id", idStr))
 			utils.RespondWithValidationError(w, http.StatusUnauthorized, utils.NewValidationError(utils.ErrUnauthorized, "Invalid user ID", nil))
 			return
 		}
@@ -45,13 +46,13 @@ func Protected(next http.Handler) http.Handler {
 		var usr models.User
 		if err := config.DB.Select("session_version").First(&usr, id).Error; err == nil {
 			if svStr == "" || svStr != strconv.Itoa(usr.SessionVersion) {
-				log.Printf("[Protected] Session version mismatch: cookie=%s db=%d", svStr, usr.SessionVersion)
+				zap.L().Debug("Session version mismatch", zap.String("cookie", svStr), zap.Int("db", usr.SessionVersion))
 				utils.ClearSession(w, r)
 				utils.RespondWithValidationError(w, http.StatusUnauthorized, utils.NewValidationError(utils.ErrUnauthorized, "Session expired, please log in again", nil))
 				return
 			}
 		}
-		log.Printf("[Protected] Authenticated user_id: %d", id)
+		zap.L().Debug("Authenticated", zap.Uint("user_id", id))
 		ctx := context.WithValue(r.Context(), UserIDKey, id)
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
@@ -68,12 +69,12 @@ func AdminOnly(next http.Handler) http.Handler {
 		}
 		var user models.User
 		if err := config.DB.First(&user, userID).Error; err != nil {
-			log.Printf("[AdminOnly] Forbidden: user not found (user_id=%d)", userID)
+			zap.L().Debug("AdminOnly user not found", zap.Uint("user_id", userID))
 			utils.RespondWithValidationError(w, http.StatusForbidden, utils.NewValidationError(utils.ErrForbidden, "Forbidden", nil))
 			return
 		}
 		if user.Role != "admin" {
-			log.Printf("[AdminOnly] Forbidden: user_id=%d, role=%s", userID, user.Role)
+			zap.L().Debug("AdminOnly forbidden role", zap.Uint("user_id", userID), zap.String("role", user.Role))
 			utils.RespondWithValidationError(w, http.StatusForbidden, utils.NewValidationError(utils.ErrForbidden, "Forbidden", nil))
 			return
 		}
