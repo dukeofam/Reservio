@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"os"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -78,11 +79,16 @@ func SetSession(w http.ResponseWriter, r *http.Request, userID uint) {
 		session.Values["csrf_token_expiry"] = time.Now().Unix() + 7200 // 2 hours
 	}
 
+	secureCookie := true
+	if os.Getenv("TEST_MODE") == "1" || strings.ToLower(os.Getenv("ENVIRONMENT")) != "production" {
+		secureCookie = false
+	}
+
 	session.Options = &sessions.Options{
 		Path:     "/",
 		MaxAge:   3600,
 		HttpOnly: true,
-		Secure:   os.Getenv("TEST_MODE") != "1",
+		Secure:   secureCookie,
 		SameSite: http.SameSiteStrictMode,
 	}
 	if err := session.Save(r, w); err != nil {
