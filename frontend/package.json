@@ -16,7 +16,9 @@
     "zustand": "^4.5.2",
     "i18next": "^23.8.1",
     "react-i18next": "^13.2.1",
-    "@heroicons/react": "^2.0.18"
+    "@heroicons/react": "^2.0.18",
+    "react-big-calendar": "^1.11.4",
+    "date-fns": "^3.6.0"
   },
   "devDependencies": {
     "@types/react": "^18.2.21",
