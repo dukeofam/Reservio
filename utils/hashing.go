@@ -9,6 +9,8 @@ import (
 	"sync"
 	"time"
 
+	"crypto/rand"
+	"encoding/base64"
 	"reservio/config"
 
 	"github.com/gorilla/sessions"
@@ -51,6 +53,18 @@ func GetLoginAttempt(email string) LoginAttempt {
 func SetSession(w http.ResponseWriter, r *http.Request, userID uint) {
 	session, _ := config.Store.Get(r, "session")
 	session.Values["user_id"] = strconv.Itoa(int(userID))
+
+	// Ensure we have a CSRF token for this new/updated session
+	token, _ := session.Values["csrf_token"].(string)
+	if token == "" {
+		// Generate a 32-byte random CSRF token (same entropy as middleware)
+		b := make([]byte, 32)
+		_, _ = rand.Read(b)
+		token = base64.StdEncoding.EncodeToString(b)
+		session.Values["csrf_token"] = token
+		session.Values["csrf_token_expiry"] = time.Now().Unix() + 7200 // 2 hours
+	}
+
 	session.Options = &sessions.Options{
 		Path:     "/",
 		MaxAge:   3600,
@@ -61,6 +75,9 @@ func SetSession(w http.ResponseWriter, r *http.Request, userID uint) {
 	if err := session.Save(r, w); err != nil {
 		log.Printf("[SetSession] session.Save error: %v", err)
 	}
+
+	// Expose CSRF token to the client so it can be stored
+	w.Header().Set("X-CSRF-Token", token)
 }
 
 func ClearSession(w http.ResponseWriter, r *http.Request) {

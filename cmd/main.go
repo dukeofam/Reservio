@@ -77,7 +77,7 @@ func main() {
 	if config.DB != nil {
 		sqlDB, err := config.DB.DB()
 		if err == nil {
-			sqlDB.Close()
+			_ = sqlDB.Close()
 		}
 	}
 

@@ -85,5 +85,7 @@ func RegenerateCSRFToken(w http.ResponseWriter, r *http.Request) error {
 		log.Printf("[CSRF] sess.Save error: %v", err)
 		return err
 	}
+	// Always expose the fresh token so the frontend can store it
+	w.Header().Set("X-CSRF-Token", token)
 	return nil
 }

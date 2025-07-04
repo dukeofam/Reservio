@@ -198,7 +198,7 @@ func CancelReservation(w http.ResponseWriter, r *http.Request) {
 
 	vars := mux.Vars(r)
 	reservationIDStr := vars["id"]
-	reservationID, err := parseUint(reservationIDStr)
+	reservationID, err := utils.ParseUint(reservationIDStr)
 	if err != nil {
 		utils.RespondWithValidationError(w, http.StatusBadRequest, utils.NewValidationError(utils.ErrInvalidInput, "Invalid reservation ID", map[string]interface{}{
 			"reservation_id": reservationIDStr,

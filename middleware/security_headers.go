@@ -3,6 +3,7 @@ package middleware
 import (
 	"net/http"
 	"os"
+	"strings"
 )
 
 // SecurityHeadersMiddleware adds security headers to all responses
@@ -18,15 +19,33 @@ func SecurityHeadersMiddleware(next http.Handler) http.Handler {
 		// CORS headers
 		origin := r.Header.Get("Origin")
 		if origin != "" {
-			// Allow React dev server in test mode
+			allowed := false
+
+			// Test mode – always allow localhost dev server origins
 			if os.Getenv("TEST_MODE") == "1" && (origin == "http://localhost:3000" || origin == "http://127.0.0.1:3000") {
+				allowed = true
+			}
+
+			// Environment variable override (comma-separated list)
+			if !allowed {
+				if ao := os.Getenv("ALLOWED_ORIGINS"); ao != "" {
+					origins := strings.Split(ao, ",")
+					for _, o := range origins {
+						if strings.TrimSpace(o) == origin {
+							allowed = true
+							break
+						}
+					}
+				}
+			}
+
+			// Default production fallback (if ENV var not set)
+			if !allowed && os.Getenv("ENVIRONMENT") == "production" && origin == "https://yourdomain.com" {
+				allowed = true
+			}
+
+			if allowed {
 				w.Header().Set("Access-Control-Allow-Origin", origin)
-				w.Header().Set("Access-Control-Allow-Credentials", "true")
-				w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
-				w.Header().Set("Access-Control-Allow-Headers", "Content-Type, X-CSRF-Token, Authorization")
-			} else if os.Getenv("ENVIRONMENT") == "production" {
-				// In production, only allow your domain
-				w.Header().Set("Access-Control-Allow-Origin", "https://yourdomain.com")
 				w.Header().Set("Access-Control-Allow-Credentials", "true")
 				w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
 				w.Header().Set("Access-Control-Allow-Headers", "Content-Type, X-CSRF-Token, Authorization")

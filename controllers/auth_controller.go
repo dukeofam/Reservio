@@ -77,6 +77,7 @@ func Register(w http.ResponseWriter, r *http.Request) {
 	}
 
 	utils.SetSession(w, r, user.ID)
+	// CSRF token is attached to the response by SetSession
 	utils.RespondWithSuccess(w, map[string]interface{}{
 		"message": "User registered successfully",
 		"user": map[string]interface{}{
@@ -142,6 +143,7 @@ func Login(w http.ResponseWriter, r *http.Request) {
 
 	utils.ResetLoginAttempt(body.Email)
 	utils.SetSession(w, r, user.ID)
+	// CSRF token is attached to the response by SetSession
 
 	utils.RespondWithSuccess(w, map[string]interface{}{
 		"message": "Logged in successfully",
@@ -157,6 +159,30 @@ func Logout(w http.ResponseWriter, r *http.Request) {
 	utils.ClearSession(w, r)
 	utils.RespondWithSuccess(w, map[string]interface{}{
 		"message": "Logged out successfully",
+	})
+}
+
+// RefreshSession extends the session expiry if still valid and returns a fresh CSRF token.
+// Front-end can call this periodically to implement silent re-auth.
+func RefreshSession(w http.ResponseWriter, r *http.Request) {
+	// Must be authenticated (Protected middleware) so user_id is present
+	userID, ok := r.Context().Value(middleware.UserIDKey).(uint)
+	if !ok {
+		utils.RespondWithValidationError(w, http.StatusUnauthorized, utils.NewValidationError(utils.ErrUnauthorized, "Not authenticated", nil))
+		return
+	}
+
+	// Renew cookie expiry
+	utils.SetSession(w, r, userID)
+
+	// Generate new CSRF token inside SetSession via middleware
+	if err := middleware.RegenerateCSRFToken(w, r); err != nil {
+		utils.RespondWithError(w, http.StatusInternalServerError, "Failed to refresh CSRF token")
+		return
+	}
+
+	utils.RespondWithSuccess(w, map[string]interface{}{
+		"message": "Session refreshed",
 	})
 }
 

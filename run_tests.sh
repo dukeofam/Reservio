@@ -18,11 +18,19 @@ export TEST_MODE=1
 
 # Run Go tests
 echo "Running Go tests..."
-go test ./... -v
+GO_TEST_OUTPUT=$(go test ./... -v)
+echo "$GO_TEST_OUTPUT"
 
-if [ $? -eq 0 ]; then
-  echo "All tests passed!"
+EXIT_CODE=$?
+
+# ANSI colours
+GREEN="$(tput setaf 2)"
+RED="$(tput setaf 1)"
+RESET="$(tput sgr0)"
+
+if [ $EXIT_CODE -eq 0 ]; then
+  echo "${GREEN}OK${RESET}  All tests passed!"
 else
-  echo "Some tests failed."
-  exit 1
+  echo "${RED}FAIL${RESET}  Some tests failed."
+  exit $EXIT_CODE
 fi 

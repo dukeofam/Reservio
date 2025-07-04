@@ -36,6 +36,12 @@ func SetupRouter() *mux.Router {
 	auth.HandleFunc("/request-reset", controllers.RequestPasswordReset).Methods("POST")
 	auth.HandleFunc("/reset-password", controllers.ResetPassword).Methods("POST")
 
+	// Session refresh (protected)
+	refresh := api.PathPrefix("/auth").Subrouter()
+	refresh.Use(middleware.Protected)
+	refresh.Use(middleware.CSRFMiddleware)
+	refresh.HandleFunc("/refresh", controllers.RefreshSession).Methods("POST")
+
 	parent := api.PathPrefix("/parent").Subrouter()
 	parent.Use(middleware.Protected)
 	parent.Use(middleware.CSRFMiddleware)
@@ -54,6 +60,7 @@ func SetupRouter() *mux.Router {
 	admin.Use(middleware.AdminOnly)
 	admin.Use(middleware.CSRFMiddleware)
 	admin.HandleFunc("/slots", controllers.CreateSlot).Methods("POST")
+	admin.HandleFunc("/slots", controllers.ListSlots).Methods("GET")
 	admin.HandleFunc("/approve/{id}", controllers.ApproveReservation).Methods("PUT")
 	admin.HandleFunc("/reject/{id}", controllers.RejectReservation).Methods("PUT")
 	admin.HandleFunc("/reservations", controllers.GetReservationsByStatus).Methods("GET")

@@ -1,6 +1,6 @@
 # Reservio Backend
 
-A Go Fiber backend for managing reservations, users, children, and admin operations.
+A Go Fiber backend for managing reservations, users, children, and admin operations of the kindergarten reservation portal Reservio.
 
 ## 🚀 Getting Started
 
@@ -40,6 +40,7 @@ SMTP_USER=your_email@gmail.com
 SMTP_PASSWORD=your_password
 SMTP_HOST=smtp.gmail.com
 SMTP_PORT=587
+ALLOWED_ORIGINS=http://localhost:3000,https://your-frontend.com
 ```
 
 - **DB URI format:**
@@ -51,6 +52,7 @@ SMTP_PORT=587
 - `POST /api/auth/register` — Register new user
 - `POST /api/auth/login` — Login
 - `POST /api/auth/logout` — Logout
+- `POST /api/auth/refresh` — Refresh session (silent re-auth)
 - `POST /api/auth/request-reset` — Request password reset
 - `POST /api/auth/reset-password` — Reset password
 
@@ -61,6 +63,7 @@ SMTP_PORT=587
 ### Parent
 - `POST /api/parent/children` — Add child
 - `GET /api/parent/children` — List children
+- `GET /api/parent/children/:id` — Get child detail
 - `PUT /api/parent/children/:id` — Edit child
 - `DELETE /api/parent/children/:id` — Delete child
 - `POST /api/parent/reserve` — Make reservation
@@ -78,6 +81,7 @@ SMTP_PORT=587
 
 ### Public
 - `GET /api/slots` — List slots
+- `GET /api/slots/:id` — Get slot detail (with availability)
 - `GET /health` — Health check
 - `GET /version` — Version info
 
@@ -108,6 +112,17 @@ SMTP_PORT=587
   ```
 - This will generate OpenAPI docs from Go comments in `docs/generated/swagger.yaml`.
 - You can then view or merge this with the hand-written spec.
+
+## 🧑‍💻 Session & Logout Flow
+
+| Action | Endpoint | What Front-End Should Do |
+|--------|----------|--------------------------|
+| **Logout** | `POST /api/auth/logout` | On HTTP 200, clear the browser "session" cookie and local auth state. (The backend also invalidates the cookie with `Max-Age: -1`, but some browsers cache aggressively.) |
+| **Silent refresh** | `POST /api/auth/refresh` | Call periodically (e.g. every 15 min) while the user is active. The backend extends the cookie expiry **and** returns a fresh `X-CSRF-Token` header. Store the new token for subsequent state-changing requests. |
+
+Notes:
+1. Protected routes (`/api/*` except public ones) require both a valid `session` cookie **and** a matching `X-CSRF-Token` header for `POST/PUT/DELETE`.
+2. On session expiry the backend replies `401 Unauthorized` – redirect the user to the login page in that case.
 
 ---
 

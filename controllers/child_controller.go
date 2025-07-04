@@ -2,7 +2,6 @@ package controllers
 
 import (
 	"encoding/json"
-	"fmt"
 	"net/http"
 	"reservio/config"
 	"reservio/middleware"
@@ -284,11 +283,4 @@ func GetChild(w http.ResponseWriter, r *http.Request) {
 			"age":  child.Age,
 		},
 	})
-}
-
-// Helper function to parse uint from string
-func parseUint(s string) (uint, error) {
-	var result uint
-	_, err := fmt.Sscanf(s, "%d", &result)
-	return result, err
 }

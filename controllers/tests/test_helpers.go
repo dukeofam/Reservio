@@ -15,9 +15,9 @@ import (
 )
 
 func setupTestApp() *httptest.Server {
-	os.Setenv("DATABASE_URL", "postgres://reservio:reservio@localhost:5432/reservio_test?sslmode=disable")
-	os.Setenv("TEST_MODE", "1")
-	os.Setenv("SESSION_SECRET", "test-secret-key")
+	_ = os.Setenv("DATABASE_URL", "postgres://reservio:reservio@localhost:5432/reservio_test?sslmode=disable")
+	_ = os.Setenv("TEST_MODE", "1")
+	_ = os.Setenv("SESSION_SECRET", "test-secret-key")
 	config.ConnectDatabase()
 	config.InitSessionStore()
 	cleanupTestDB(config.DB)
@@ -69,7 +69,7 @@ func registerAndLogin(server *httptest.Server, email, password, csrfToken, cooki
 			cookie = c.Name + "=" + c.Value
 		}
 	}
-	regResp.Body.Close()
+	_ = regResp.Body.Close()
 
 	// Login
 	loginReq, _ := http.NewRequest("POST", server.URL+"/api/auth/login", bytes.NewReader(body))
@@ -91,7 +91,7 @@ func registerAndLogin(server *httptest.Server, email, password, csrfToken, cooki
 			cookie = c.Name + "=" + c.Value
 		}
 	}
-	loginResp.Body.Close()
+	_ = loginResp.Body.Close()
 
 	// ⬇️ NEW: Get fresh CSRF after login from a protected endpoint
 	getReq, _ := http.NewRequest("GET", server.URL+"/api/user/profile", nil)
@@ -100,7 +100,7 @@ func registerAndLogin(server *httptest.Server, email, password, csrfToken, cooki
 	if err != nil {
 		panic(err)
 	}
-	defer getResp.Body.Close()
+	defer func() { _ = getResp.Body.Close() }()
 
 	// Get fresh CSRF token from the response
 	freshCSRFToken := getResp.Header.Get("X-CSRF-Token")
@@ -129,7 +129,7 @@ func createSlot(server *httptest.Server, csrfToken, cookie, date string, capacit
 	if err != nil {
 		panic(err)
 	}
-	defer slotResp.Body.Close()
+	defer func() { _ = slotResp.Body.Close() }()
 	if slotResp.StatusCode != 200 {
 		var bodyBytes bytes.Buffer
 		_, _ = bodyBytes.ReadFrom(slotResp.Body)
@@ -161,7 +161,7 @@ func createChild(server *httptest.Server, csrfToken, cookie, name string, age in
 	if err != nil {
 		panic(err)
 	}
-	defer childResp.Body.Close()
+	defer func() { _ = childResp.Body.Close() }()
 	if childResp.StatusCode != 200 {
 		var bodyBytes bytes.Buffer
 		_, _ = bodyBytes.ReadFrom(childResp.Body)
@@ -201,7 +201,7 @@ func createReservation(server *httptest.Server, csrfToken, cookie string, slotID
 	if err != nil {
 		panic(err)
 	}
-	defer listResp.Body.Close()
+	defer func() { _ = listResp.Body.Close() }()
 	var listResult map[string]interface{}
 	if err := json.NewDecoder(listResp.Body).Decode(&listResult); err != nil {
 		panic(err)

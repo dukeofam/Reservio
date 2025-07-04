@@ -5,9 +5,11 @@ import (
 	"log"
 	"net/http"
 	"strconv"
+	"strings"
 
 	"reservio/config"
 	"reservio/models"
+	"reservio/utils"
 )
 
 // ContextKey is a type for context keys used in request context
@@ -24,13 +26,17 @@ func Protected(next http.Handler) http.Handler {
 		idStr, ok := session.Values["user_id"].(string)
 		if !ok || idStr == "" {
 			log.Printf("[Protected] No user_id in session: %#v", session.Values)
-			http.Error(w, `{"error": "Not logged in"}`, http.StatusUnauthorized)
+			if strings.HasPrefix(r.URL.Path, "/api/admin/") {
+				utils.RespondWithValidationError(w, http.StatusNotFound, utils.NewValidationError(utils.ErrNotFound, "Resource not found", nil))
+			} else {
+				utils.RespondWithValidationError(w, http.StatusUnauthorized, utils.NewValidationError(utils.ErrUnauthorized, "Not logged in", nil))
+			}
 			return
 		}
 		id, err := strconv.Atoi(idStr)
 		if err != nil {
 			log.Printf("[Protected] Invalid user_id in session: %v", idStr)
-			http.Error(w, `{"error": "Invalid user ID"}`, http.StatusUnauthorized)
+			utils.RespondWithValidationError(w, http.StatusUnauthorized, utils.NewValidationError(utils.ErrUnauthorized, "Invalid user ID", nil))
 			return
 		}
 		log.Printf("[Protected] Authenticated user_id: %d", id)
@@ -45,18 +51,18 @@ func AdminOnly(next http.Handler) http.Handler {
 		ctx := r.Context()
 		userID, ok := ctx.Value(UserIDKey).(uint)
 		if !ok {
-			http.Error(w, `{"error": "Unauthorized"}`, http.StatusUnauthorized)
+			utils.RespondWithValidationError(w, http.StatusUnauthorized, utils.NewValidationError(utils.ErrUnauthorized, "Unauthorized", nil))
 			return
 		}
 		var user models.User
 		if err := config.DB.First(&user, userID).Error; err != nil {
 			log.Printf("[AdminOnly] Forbidden: user not found (user_id=%d)", userID)
-			http.Error(w, `{"error": "Forbidden"}`, http.StatusForbidden)
+			utils.RespondWithValidationError(w, http.StatusForbidden, utils.NewValidationError(utils.ErrForbidden, "Forbidden", nil))
 			return
 		}
 		if user.Role != "admin" {
 			log.Printf("[AdminOnly] Forbidden: user_id=%d, role=%s", userID, user.Role)
-			http.Error(w, `{"error": "Forbidden"}`, http.StatusForbidden)
+			utils.RespondWithValidationError(w, http.StatusForbidden, utils.NewValidationError(utils.ErrForbidden, "Forbidden", nil))
 			return
 		}
 		next.ServeHTTP(w, r)

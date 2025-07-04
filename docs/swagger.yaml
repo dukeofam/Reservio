@@ -107,16 +107,21 @@ paths:
                 $ref: '#/components/schemas/MessageResponse'
   /api/slots:
     get:
-      summary: List slots
+      summary: List slots (paginated)
       responses:
         '200':
-          description: List of slots
+          description: Paginated list of slots
           content:
             application/json:
               schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/Slot'
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Slot'
+                  pagination:
+                    $ref: '#/components/schemas/Pagination'
   /api/parent/children:
     post:
       summary: Add child (parent)
@@ -137,13 +142,18 @@ paths:
       summary: List children (parent)
       responses:
         '200':
-          description: List of children
+          description: Paginated list of children
           content:
             application/json:
               schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/Child'
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Child'
+                  pagination:
+                    $ref: '#/components/schemas/Pagination'
   /api/parent/children/{id}:
     put:
       summary: Edit child (parent)
@@ -181,6 +191,21 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/MessageResponse'
+    get:
+      summary: Get child detail (parent)
+      parameters:
+        - in: path
+          name: id
+          schema:
+            type: integer
+          required: true
+      responses:
+        '200':
+          description: Child detail
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Child'
   /api/parent/reserve:
     post:
       summary: Make reservation (parent)
@@ -202,13 +227,18 @@ paths:
       summary: List my reservations (parent)
       responses:
         '200':
-          description: List of reservations
+          description: Paginated list of reservations
           content:
             application/json:
               schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/Reservation'
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Reservation'
+                  pagination:
+                    $ref: '#/components/schemas/Pagination'
   /api/parent/reservations/{id}:
     delete:
       summary: Cancel reservation (parent)
@@ -241,6 +271,22 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Slot'
+    get:
+      summary: List slots (admin)
+      responses:
+        '200':
+          description: Paginated list of slots
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Slot'
+                  pagination:
+                    $ref: '#/components/schemas/Pagination'
   /api/admin/approve/{id}:
     put:
       summary: Approve reservation (admin)
@@ -284,25 +330,35 @@ paths:
           required: false
       responses:
         '200':
-          description: List of reservations
+          description: Paginated list of reservations
           content:
             application/json:
               schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/Reservation'
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Reservation'
+                  pagination:
+                    $ref: '#/components/schemas/Pagination'
   /api/admin/users:
     get:
       summary: List users (admin)
       responses:
         '200':
-          description: List of users
+          description: Paginated list of users
           content:
             application/json:
               schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/User'
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/User'
+                  pagination:
+                    $ref: '#/components/schemas/Pagination'
   /api/admin/users/{id}:
     delete:
       summary: Delete user (admin)
@@ -366,6 +422,37 @@ paths:
                     type: string
                   commit:
                     type: string
+  /api/auth/refresh:
+    post:
+      summary: Refresh session
+      responses:
+        '200':
+          description: Session refreshed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+  /api/slots/{id}:
+    get:
+      summary: Get slot detail
+      parameters:
+        - in: path
+          name: id
+          schema:
+            type: integer
+          required: true
+      responses:
+        '200':
+          description: Slot detail with availability
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  slot:
+                    $ref: '#/components/schemas/Slot'
+                  availability:
+                    type: object
 components:
   schemas:
     RegisterRequest:
@@ -483,4 +570,15 @@ components:
       type: object
       properties:
         role:
-          type: string 
+          type: string
+    Pagination:
+      type: object
+      properties:
+        page:
+          type: integer
+        per_page:
+          type: integer
+        total:
+          type: integer
+        total_pages:
+          type: integer 
