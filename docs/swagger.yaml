@@ -18,6 +18,11 @@ paths:
       responses:
         '200':
           description: User registered
+          headers:
+            X-CSRF-Token:
+              description: CSRF token to include in subsequent mutating requests
+              schema:
+                type: string
           content:
             application/json:
               schema:
@@ -34,6 +39,11 @@ paths:
       responses:
         '200':
           description: Login successful
+          headers:
+            X-CSRF-Token:
+              description: CSRF token to include in subsequent mutating requests
+              schema:
+                type: string
           content:
             application/json:
               schema:
@@ -453,6 +463,21 @@ paths:
                     $ref: '#/components/schemas/Slot'
                   availability:
                     type: object
+  /api/auth/logout-all:
+    post:
+      summary: Logout on all devices (invalidate all sessions)
+      responses:
+        '200':
+          description: Global logout successful
+          headers:
+            X-CSRF-Token:
+              description: Fresh CSRF token for unauthenticated state (usually empty)
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
 components:
   schemas:
     RegisterRequest:

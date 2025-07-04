@@ -9,12 +9,27 @@ import (
 // SecurityHeadersMiddleware adds security headers to all responses
 func SecurityHeadersMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// Security headers
-		w.Header().Set("Strict-Transport-Security", "max-age=63072000; includeSubDomains; preload")
+		// --- Security headers -------------------------------------------------
+		// Only enable HSTS when request is HTTPS (r.TLS != nil) OR explicitly enabled via env.
+		if r.TLS != nil || os.Getenv("ENABLE_HSTS") == "1" {
+			// 2-year max-age recommended by OWASP
+			w.Header().Set("Strict-Transport-Security", "max-age=63072000; includeSubDomains; preload")
+		}
+
 		w.Header().Set("X-Content-Type-Options", "nosniff")
 		w.Header().Set("X-Frame-Options", "DENY")
 		w.Header().Set("Referrer-Policy", "strict-origin-when-cross-origin")
-		w.Header().Set("Content-Security-Policy", "default-src 'self'; frame-ancestors 'none'; base-uri 'self'")
+
+		// Content-Security-Policy can be overridden via env (single string)
+		csp := os.Getenv("CSP")
+		if csp == "" {
+			csp = "default-src 'self'; frame-ancestors 'none'; base-uri 'self'"
+		}
+		w.Header().Set("Content-Security-Policy", csp)
+
+		// Disable features we don't use
+		w.Header().Set("Permissions-Policy", "camera=(), microphone=(), geolocation=(), payment=()")
+		// ---------------------------------------------------------------------
 
 		// CORS headers
 		origin := r.Header.Get("Origin")
