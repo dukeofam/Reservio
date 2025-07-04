@@ -52,6 +52,12 @@ jobs:
       with:
         version: latest
 
+    - name: Run gosec (security scanner)
+      run: |
+        go install github.com/securego/gosec/v2/cmd/gosec@latest
+        # Run gosec against all non-vendor packages; exit non-zero on any HIGH severity issue
+        $(go env GOPATH)/bin/gosec -severity medium -exclude-dir tests -exclude-dir docs ./...
+
     - name: Wait for Postgres
       run: |
         for i in {1..10}; do
