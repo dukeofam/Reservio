@@ -11,22 +11,14 @@ import (
 	"reservio/models"
 	"reservio/utils"
 	"strings"
-	"sync"
 	"time"
 
 	"golang.org/x/crypto/bcrypt"
 )
 
-var resetTokens = struct {
-	sync.RWMutex
-	m map[string]uint
-}{m: make(map[string]uint)}
-
 func generateResetToken() string {
 	b := make([]byte, 32)
-	if _, err := rand.Read(b); err != nil {
-		return ""
-	}
+	_, _ = rand.Read(b)
 	return base64.URLEncoding.EncodeToString(b)
 }
 
@@ -320,10 +312,18 @@ func RequestPasswordReset(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Create/replace DB token for this user
 	token := generateResetToken()
-	resetTokens.Lock()
-	resetTokens.m[token] = user.ID
-	resetTokens.Unlock()
+	expiry := time.Now().Add(30 * time.Minute).Unix()
+
+	// Remove existing tokens for user
+	config.DB.Where("user_id = ?", user.ID).Delete(&models.PasswordResetToken{})
+
+	prt := models.PasswordResetToken{UserID: user.ID, Token: token, ExpiresAt: expiry}
+	if err := config.DB.Create(&prt).Error; err != nil {
+		utils.RespondWithError(w, http.StatusInternalServerError, "Failed to create reset token")
+		return
+	}
 
 	resetLink := "http://localhost:3000/reset-password?token=" + token
 	if err := utils.SendMail(user.Email, "Password Reset", "Reset your password: "+resetLink); err != nil {
@@ -358,15 +358,18 @@ func ResetPassword(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	resetTokens.RLock()
-	userID, ok := resetTokens.m[body.Token]
-	resetTokens.RUnlock()
-	if !ok {
-		utils.RespondWithValidationError(w, http.StatusBadRequest, utils.NewValidationError("INVALID_TOKEN", "Invalid or expired token", map[string]interface{}{
-			"token": body.Token,
-		}))
+	var prt models.PasswordResetToken
+	if err := config.DB.Where("token = ?", body.Token).First(&prt).Error; err != nil {
+		utils.RespondWithValidationError(w, http.StatusBadRequest, utils.NewValidationError("INVALID_TOKEN", "Invalid or expired token", map[string]interface{}{"token": body.Token}))
 		return
 	}
+	if time.Now().Unix() > prt.ExpiresAt {
+		// Delete expired token
+		config.DB.Delete(&prt)
+		utils.RespondWithValidationError(w, http.StatusBadRequest, utils.NewValidationError("TOKEN_EXPIRED", "Token has expired", nil))
+		return
+	}
+	userID := prt.UserID
 
 	var user models.User
 	if err := config.DB.First(&user, userID).Error; err != nil {
@@ -383,9 +386,8 @@ func ResetPassword(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	resetTokens.Lock()
-	delete(resetTokens.m, body.Token)
-	resetTokens.Unlock()
+	// Delete token after successful reset
+	config.DB.Delete(&prt)
 
 	utils.InvalidateAllUserSessions(w, r)
 
