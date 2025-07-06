@@ -68,15 +68,33 @@ func SetupRouter() *mux.Router {
 	admin.HandleFunc("/users", controllers.ListUsers).Methods("GET")
 	admin.HandleFunc("/users/{id}", controllers.DeleteUser).Methods("DELETE")
 	admin.HandleFunc("/users/{id}/role", controllers.UpdateUserRole).Methods("PUT")
+	admin.HandleFunc("/announcements", controllers.CreateAnnouncement).Methods("POST")
+	admin.HandleFunc("/announcements/{id}", controllers.UpdateAnnouncement).Methods("PUT")
+	admin.HandleFunc("/announcements/{id}", controllers.DeleteAnnouncement).Methods("DELETE")
+	admin.HandleFunc("/children", controllers.ListChildrenWithParents).Methods("GET")
+	admin.HandleFunc("/slots/{id}", controllers.UpdateSlot).Methods("PUT")
+	admin.HandleFunc("/slots/{id}", controllers.DeleteSlot).Methods("DELETE")
 
 	user := api.PathPrefix("/user").Subrouter()
 	user.Use(middleware.Protected)
 	user.Use(middleware.CSRFMiddleware)
 	user.HandleFunc("/profile", controllers.GetProfile).Methods("GET")
 	user.HandleFunc("/profile", controllers.UpdateProfile).Methods("PUT")
+	user.HandleFunc("/profile-picture", controllers.UploadProfilePicture).Methods("POST")
 
+	// 📌 Important: register the calendar endpoint BEFORE the generic /slots/{id}
+	// otherwise the {id} wildcard would absorb the word "calendar" and we'd
+	// get a 400 Bad Request parsing error.
+	api.HandleFunc("/slots/calendar", controllers.ListSlotsCalendar).Methods("GET")
 	api.HandleFunc("/slots", controllers.ListSlots).Methods("GET")
 	api.HandleFunc("/slots/{id}", controllers.GetSlot).Methods("GET")
+	api.HandleFunc("/announcements", controllers.ListAnnouncements).Methods("GET")
+
+	// Dashboard stats (protected)
+	dashboard := api.PathPrefix("/dashboard").Subrouter()
+	dashboard.Use(middleware.Protected)
+	dashboard.Use(middleware.CSRFMiddleware)
+	dashboard.HandleFunc("/stats", controllers.GetDashboardStats).Methods("GET")
 
 	r.HandleFunc("/version", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")

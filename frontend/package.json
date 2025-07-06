@@ -18,7 +18,12 @@
     "react-i18next": "^13.2.1",
     "@heroicons/react": "^2.0.18",
     "react-big-calendar": "^1.11.4",
-    "date-fns": "^3.6.0"
+    "date-fns": "^3.6.0",
+    "@headlessui/react": "^1.7.17",
+    "@fullcalendar/react": "^6.1.10",
+    "@fullcalendar/daygrid": "^6.1.10",
+    "@fullcalendar/interaction": "^6.1.10",
+    "tippy.js": "^6.3.7"
   },
   "devDependencies": {
     "@types/react": "^18.2.21",

@@ -43,7 +43,7 @@ func ConnectDatabase() {
 		log.Fatal("Failed to connect to database:", err)
 	}
 
-	if err := database.AutoMigrate(&models.User{}, &models.Child{}, &models.Reservation{}, &models.Slot{}, &models.PasswordResetToken{}); err != nil {
+	if err := database.AutoMigrate(&models.User{}, &models.Child{}, &models.Reservation{}, &models.Slot{}, &models.PasswordResetToken{}, &models.Announcement{}); err != nil {
 		log.Fatal("AutoMigrate failed:", err)
 	}
 	DB = database

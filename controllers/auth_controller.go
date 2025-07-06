@@ -4,7 +4,10 @@ import (
 	"crypto/rand"
 	"encoding/base64"
 	"encoding/json"
+	"fmt"
+	"io"
 	"net/http"
+	"os"
 	"reservio/config"
 	"reservio/middleware"
 	"reservio/models"
@@ -25,8 +28,11 @@ func generateResetToken() string {
 
 func Register(w http.ResponseWriter, r *http.Request) {
 	type Request struct {
-		Email    string `json:"email"`
-		Password string `json:"password"`
+		Email     string `json:"email"`
+		Password  string `json:"password"`
+		FirstName string `json:"first_name"`
+		LastName  string `json:"last_name"`
+		Phone     string `json:"phone"`
 	}
 	var body Request
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
@@ -55,7 +61,14 @@ func Register(w http.ResponseWriter, r *http.Request) {
 	}
 
 	hash, _ := bcrypt.GenerateFromPassword([]byte(body.Password), 14)
-	user := models.User{Email: body.Email, Password: string(hash), Role: "parent"}
+	user := models.User{
+		Email:     body.Email,
+		Password:  string(hash),
+		Role:      "parent",
+		FirstName: body.FirstName,
+		LastName:  body.LastName,
+		Phone:     body.Phone,
+	}
 
 	if result := config.DB.Create(&user); result.Error != nil {
 		// Check for duplicate email error
@@ -74,9 +87,13 @@ func Register(w http.ResponseWriter, r *http.Request) {
 	utils.RespondWithSuccess(w, map[string]interface{}{
 		"message": "User registered successfully",
 		"user": map[string]interface{}{
-			"id":    user.ID,
-			"email": user.Email,
-			"role":  user.Role,
+			"id":              user.ID,
+			"email":           user.Email,
+			"role":            user.Role,
+			"first_name":      user.FirstName,
+			"last_name":       user.LastName,
+			"phone":           user.Phone,
+			"profile_picture": user.ProfilePicture,
 		},
 	})
 }
@@ -141,9 +158,13 @@ func Login(w http.ResponseWriter, r *http.Request) {
 	utils.RespondWithSuccess(w, map[string]interface{}{
 		"message": "Logged in successfully",
 		"user": map[string]interface{}{
-			"id":    user.ID,
-			"email": user.Email,
-			"role":  user.Role,
+			"id":              user.ID,
+			"email":           user.Email,
+			"role":            user.Role,
+			"first_name":      user.FirstName,
+			"last_name":       user.LastName,
+			"phone":           user.Phone,
+			"profile_picture": user.ProfilePicture,
 		},
 	})
 }
@@ -200,9 +221,13 @@ func GetProfile(w http.ResponseWriter, r *http.Request) {
 
 	utils.RespondWithSuccess(w, map[string]interface{}{
 		"user": map[string]interface{}{
-			"id":    user.ID,
-			"email": user.Email,
-			"role":  user.Role,
+			"id":              user.ID,
+			"email":           user.Email,
+			"role":            user.Role,
+			"first_name":      user.FirstName,
+			"last_name":       user.LastName,
+			"phone":           user.Phone,
+			"profile_picture": user.ProfilePicture,
 		},
 	})
 }
@@ -223,8 +248,12 @@ func UpdateProfile(w http.ResponseWriter, r *http.Request) {
 	}
 
 	type Req struct {
-		Email    string `json:"email"`
-		Password string `json:"password"`
+		Email          string `json:"email"`
+		Password       string `json:"password"`
+		FirstName      string `json:"first_name"`
+		LastName       string `json:"last_name"`
+		Phone          string `json:"phone"`
+		ProfilePicture string `json:"profile_picture"`
 	}
 	var body Req
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
@@ -260,6 +289,13 @@ func UpdateProfile(w http.ResponseWriter, r *http.Request) {
 		user.SessionVersion++ // invalidate other sessions
 	}
 
+	user.FirstName = body.FirstName
+	user.LastName = body.LastName
+	user.Phone = body.Phone
+	if body.ProfilePicture != "" {
+		user.ProfilePicture = body.ProfilePicture
+	}
+
 	if err := config.DB.Save(&user).Error; err != nil {
 		// Check for duplicate email error
 		if strings.Contains(err.Error(), "duplicate key value") && strings.Contains(err.Error(), "email") {
@@ -279,9 +315,13 @@ func UpdateProfile(w http.ResponseWriter, r *http.Request) {
 	utils.RespondWithSuccess(w, map[string]interface{}{
 		"message": "Profile updated successfully",
 		"user": map[string]interface{}{
-			"id":    user.ID,
-			"email": user.Email,
-			"role":  user.Role,
+			"id":              user.ID,
+			"email":           user.Email,
+			"role":            user.Role,
+			"first_name":      user.FirstName,
+			"last_name":       user.LastName,
+			"phone":           user.Phone,
+			"profile_picture": user.ProfilePicture,
 		},
 	})
 }
@@ -417,5 +457,86 @@ func LogoutAll(w http.ResponseWriter, r *http.Request) {
 
 	utils.RespondWithSuccess(w, map[string]interface{}{
 		"message": "Logged out from all devices",
+	})
+}
+
+// UploadProfilePicture handles profile picture upload for the authenticated user.
+func UploadProfilePicture(w http.ResponseWriter, r *http.Request) {
+	userID, ok := r.Context().Value(middleware.UserIDKey).(uint)
+	if !ok {
+		utils.RespondWithValidationError(w, http.StatusUnauthorized, utils.NewValidationError(utils.ErrUnauthorized, "Not authenticated", nil))
+		return
+	}
+
+	// Parse multipart form
+	err := r.ParseMultipartForm(10 << 20) // 10MB max
+	if err != nil {
+		utils.RespondWithValidationError(w, http.StatusBadRequest, utils.NewValidationError(utils.ErrInvalidInput, "Invalid form data", nil))
+		return
+	}
+
+	file, handler, err := r.FormFile("file")
+	if err != nil {
+		utils.RespondWithValidationError(w, http.StatusBadRequest, utils.NewValidationError(utils.ErrInvalidInput, "File is required", nil))
+		return
+	}
+	defer file.Close()
+
+	// Only allow certain file types (basic check)
+	allowed := map[string]bool{"image/jpeg": true, "image/png": true, "image/gif": true}
+	if !allowed[handler.Header.Get("Content-Type")] {
+		utils.RespondWithValidationError(w, http.StatusBadRequest, utils.NewValidationError(utils.ErrInvalidInput, "Unsupported file type", nil))
+		return
+	}
+
+	// Create uploads dir if not exists
+	uploadDir := "uploads"
+	if _, err := os.Stat(uploadDir); os.IsNotExist(err) {
+		_ = os.Mkdir(uploadDir, 0755)
+	}
+
+	// Generate unique filename
+	ext := ""
+	switch handler.Header.Get("Content-Type") {
+	case "image/jpeg":
+		ext = ".jpg"
+	case "image/png":
+		ext = ".png"
+	case "image/gif":
+		ext = ".gif"
+	}
+	filename := fmt.Sprintf("user_%d_%d%s", userID, time.Now().UnixNano(), ext)
+	filepath := uploadDir + "/" + filename
+
+	// Save file
+	out, err := os.Create(filepath)
+	if err != nil {
+		utils.RespondWithError(w, http.StatusInternalServerError, "Failed to save file")
+		return
+	}
+	defer out.Close()
+	_, err = io.Copy(out, file)
+	if err != nil {
+		utils.RespondWithError(w, http.StatusInternalServerError, "Failed to save file")
+		return
+	}
+
+	// Update user profile picture path in DB
+	var user models.User
+	if err := config.DB.First(&user, userID).Error; err != nil {
+		utils.RespondWithValidationError(w, http.StatusNotFound, utils.NewValidationError(utils.ErrNotFound, "User not found", map[string]interface{}{
+			"user_id": userID,
+		}))
+		return
+	}
+	user.ProfilePicture = "/uploads/" + filename
+	if err := config.DB.Save(&user).Error; err != nil {
+		utils.RespondWithError(w, http.StatusInternalServerError, "Failed to update profile picture")
+		return
+	}
+
+	utils.RespondWithSuccess(w, map[string]interface{}{
+		"message":         "Profile picture uploaded successfully",
+		"profile_picture": user.ProfilePicture,
 	})
 }

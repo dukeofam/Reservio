@@ -339,3 +339,124 @@ func UpdateUserRole(w http.ResponseWriter, r *http.Request) {
 		},
 	})
 }
+
+// ListChildrenWithParents returns all children with parent information (admin only)
+func ListChildrenWithParents(w http.ResponseWriter, r *http.Request) {
+	// Parse pagination parameters
+	page, perPage, err := utils.ParsePagination(r.URL.Query().Get("page"), r.URL.Query().Get("per_page"))
+	if err != nil {
+		if validationErr, ok := err.(utils.ValidationError); ok {
+			utils.RespondWithValidationError(w, http.StatusBadRequest, validationErr)
+		} else {
+			utils.RespondWithError(w, http.StatusBadRequest, "Invalid pagination parameters")
+		}
+		return
+	}
+
+	var children []models.Child
+	var total int64
+
+	// Get total count
+	config.DB.Model(&models.Child{}).Count(&total)
+
+	// Fetch with parent preload
+	offset := (page - 1) * perPage
+	if err := config.DB.Preload("Parent").Offset(offset).Limit(perPage).Find(&children).Error; err != nil {
+		zap.L().Error("Failed to get children with parents", zap.Error(err))
+		utils.RespondWithError(w, http.StatusInternalServerError, "Failed to retrieve children")
+		return
+	}
+
+	var data []map[string]interface{}
+	for _, c := range children {
+		item := map[string]interface{}{
+			"id":        c.ID,
+			"name":      c.Name,
+			"age":       c.Age,
+			"birthdate": c.Birthdate,
+		}
+		if c.Parent != nil {
+			item["parent"] = map[string]interface{}{
+				"id":         c.Parent.ID,
+				"email":      c.Parent.Email,
+				"first_name": c.Parent.FirstName,
+				"last_name":  c.Parent.LastName,
+			}
+		}
+		data = append(data, item)
+	}
+	if data == nil {
+		data = []map[string]interface{}{}
+	}
+
+	utils.RespondWithPaginatedData(w, data, page, perPage, int(total))
+}
+
+// UpdateSlot allows admin to change date or capacity
+func UpdateSlot(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	id := vars["id"]
+	slotID, err := utils.ParseUint(id)
+	if err != nil {
+		utils.RespondWithValidationError(w, http.StatusBadRequest, utils.NewValidationError(utils.ErrInvalidInput, "Invalid slot ID", nil))
+		return
+	}
+
+	var slot models.Slot
+	if err := config.DB.First(&slot, slotID).Error; err != nil {
+		utils.RespondWithValidationError(w, http.StatusNotFound, utils.NewValidationError(utils.ErrSlotNotFound, "Slot not found", nil))
+		return
+	}
+
+	var body struct {
+		Date     string `json:"date"`
+		Capacity int    `json:"capacity"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		utils.RespondWithValidationError(w, http.StatusBadRequest, utils.NewValidationError(utils.ErrInvalidInput, "Invalid JSON input", nil))
+		return
+	}
+	if body.Date != "" || body.Capacity != 0 {
+		if err := utils.ValidateSlot(body.Date, body.Capacity); err != nil {
+			if validationErr, ok := err.(utils.ValidationError); ok {
+				utils.RespondWithValidationError(w, http.StatusBadRequest, validationErr)
+			} else {
+				utils.RespondWithError(w, http.StatusBadRequest, "Invalid slot data")
+			}
+			return
+		}
+	}
+	if body.Date != "" {
+		slot.Date = body.Date
+	}
+	if body.Capacity != 0 {
+		slot.Capacity = body.Capacity
+	}
+	if err := config.DB.Save(&slot).Error; err != nil {
+		utils.RespondWithError(w, http.StatusInternalServerError, "Failed to update slot")
+		return
+	}
+	utils.RespondWithSuccess(w, map[string]interface{}{
+		"message": "Slot updated successfully",
+		"slot":    slot,
+	})
+}
+
+// DeleteSlot removes a slot by ID
+func DeleteSlot(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	id := vars["id"]
+	slotID, err := utils.ParseUint(id)
+	if err != nil {
+		utils.RespondWithValidationError(w, http.StatusBadRequest, utils.NewValidationError(utils.ErrInvalidInput, "Invalid slot ID", nil))
+		return
+	}
+	if err := config.DB.Delete(&models.Slot{}, slotID).Error; err != nil {
+		utils.RespondWithError(w, http.StatusInternalServerError, "Failed to delete slot")
+		return
+	}
+	utils.RespondWithSuccess(w, map[string]interface{}{
+		"message": "Slot deleted successfully",
+		"slot_id": slotID,
+	})
+}

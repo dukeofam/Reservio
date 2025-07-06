@@ -92,30 +92,71 @@ func ValidatePassword(password string) error {
 	return nil
 }
 
+// ValidateBirthdate validates birthdate string in YYYY-MM-DD and ensures age between 0-18
+func ValidateBirthdate(birthdate string) (int, error) {
+	if !IsFieldPresent(birthdate) {
+		return 0, NewValidationError(ErrInvalidInput, "Birthdate is required", map[string]interface{}{
+			"field": "birthdate",
+		})
+	}
+	dateRegex := regexp.MustCompile(`^\d{4}-\d{2}-\d{2}$`)
+	if !dateRegex.MatchString(birthdate) {
+		return 0, NewValidationError(ErrInvalidDate, "Invalid birthdate format. Use YYYY-MM-DD", map[string]interface{}{
+			"field":  "birthdate",
+			"value":  birthdate,
+			"format": "YYYY-MM-DD",
+		})
+	}
+	parsed, err := time.Parse("2006-01-02", birthdate)
+	if err != nil {
+		return 0, NewValidationError(ErrInvalidDate, "Invalid birthdate", map[string]interface{}{
+			"field": "birthdate",
+			"value": birthdate,
+		})
+	}
+	today := time.Now()
+	age := today.Year() - parsed.Year()
+	// adjust if birthday hasn't occurred yet this year
+	if today.YearDay() < parsed.YearDay() {
+		age--
+	}
+	if age < 0 || age > 18 {
+		return 0, NewValidationError(ErrInvalidAge, "Child age must be between 0 and 18", map[string]interface{}{
+			"field": "birthdate",
+			"value": birthdate,
+		})
+	}
+	return age, nil
+}
+
 // ValidateChild validates child data and returns detailed error
-func ValidateChild(name string, age int) error {
+func ValidateChild(name string, birthdate string, agePtr *int) (int, error) {
 	if !IsFieldPresent(name) {
-		return NewValidationError(ErrInvalidInput, "Child name is required", map[string]interface{}{
+		return 0, NewValidationError(ErrInvalidInput, "Child name is required", map[string]interface{}{
 			"field": "name",
-			"value": name,
 		})
 	}
 	if len(name) > 100 {
-		return NewValidationError(ErrInvalidInput, "Child name is too long (max 100 characters)", map[string]interface{}{
+		return 0, NewValidationError(ErrInvalidInput, "Child name is too long (max 100 characters)", map[string]interface{}{
 			"field":      "name",
-			"value":      name,
 			"max_length": 100,
 		})
 	}
-	if age < 0 || age > 18 {
-		return NewValidationError(ErrInvalidAge, "Child age must be between 0 and 18", map[string]interface{}{
-			"field": "age",
-			"value": age,
-			"min":   0,
-			"max":   18,
-		})
+	if IsFieldPresent(birthdate) {
+		age, err := ValidateBirthdate(birthdate)
+		return age, err
 	}
-	return nil
+	if agePtr != nil {
+		age := *agePtr
+		if age < 0 || age > 18 {
+			return 0, NewValidationError(ErrInvalidAge, "Child age must be between 0 and 18", map[string]interface{}{
+				"field": "age",
+				"value": age,
+			})
+		}
+		return age, nil
+	}
+	return 0, NewValidationError(ErrInvalidInput, "Either birthdate or age is required", nil)
 }
 
 // ValidateSlot validates slot data and returns detailed error

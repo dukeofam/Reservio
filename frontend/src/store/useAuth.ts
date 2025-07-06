@@ -5,6 +5,11 @@ interface User {
   id: number;
   email: string;
   role: string;
+  firstName?: string;
+  lastName?: string;
+  phone?: string;
+  profilePicture?: string;
+  children?: any[];
 }
 
 interface AuthState {

@@ -43,6 +43,12 @@ func main() {
 	zap.ReplaceGlobals(logger)
 	defer func() { _ = logger.Sync() }()
 
+	// Serve static files from /uploads at /uploads/ path
+	if _, err := os.Stat("uploads"); os.IsNotExist(err) {
+		_ = os.Mkdir("uploads", 0755)
+	}
+	http.Handle("/uploads/", http.StripPrefix("/uploads/", http.FileServer(http.Dir("uploads"))))
+
 	router := routes.SetupRouter()
 
 	port := os.Getenv("PORT")

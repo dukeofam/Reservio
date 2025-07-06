@@ -1,6 +1,7 @@
 import { useAuth } from '../store/useAuth';
 import { useDashboardStats, useAnnouncements, useReservations, useChildren } from '../api/hooks';
 import { useTranslation } from 'react-i18next';
+import { UserCircleIcon } from '@heroicons/react/24/solid';
 
 export default function Dashboard() {
   const { user } = useAuth();
@@ -10,21 +11,50 @@ export default function Dashboard() {
   const children = useChildren();
   const { t } = useTranslation();
 
+  const getUserDisplayName = () => {
+    if (user?.firstName && user?.lastName) {
+      return `${user.firstName} ${user.lastName}`;
+    }
+    if (user?.firstName) {
+      return user.firstName;
+    }
+    return user?.email || 'User';
+  };
+
   return (
     <div className="p-6 space-y-8 bg-amber-50 min-h-screen bg-[url('/wave.svg')] bg-cover bg-center">
+      {/* Welcome Section */}
+      <div className="bg-white/80 rounded-xl shadow p-6 mb-8">
+        <div className="flex items-center gap-4">
+          {user?.profilePicture ? (
+            <img 
+              src={user.profilePicture} 
+              alt="Profile" 
+              className="w-16 h-16 rounded-full object-cover border-2 border-primary/20"
+            />
+          ) : (
+            <UserCircleIcon className="w-16 h-16 text-primary" />
+          )}
+          <div>
+            <h1 className="text-2xl font-bold text-primary">Welcome back, {getUserDisplayName()}!</h1>
+            <p className="text-gray-600">Role: {user?.role === 'admin' ? 'Administrator' : 'Parent'}</p>
+          </div>
+        </div>
+      </div>
+
       <h1 className="text-3xl font-extrabold text-primary mb-4">{t('dashboard')}</h1>
       {user?.role === 'admin' ? (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
           <div className="bg-white/80 rounded-xl shadow p-6 text-center">
-            <div className="text-2xl font-bold text-primary">{stats?.totalChildren ?? '--'}</div>
+            <div className="text-2xl font-bold text-primary">{stats?.total_children ?? '--'}</div>
             <div className="text-gray-700">Children</div>
           </div>
           <div className="bg-white/80 rounded-xl shadow p-6 text-center">
-            <div className="text-2xl font-bold text-primary">{stats?.totalReservations ?? '--'}</div>
+            <div className="text-2xl font-bold text-primary">{stats?.total_reservations ?? '--'}</div>
             <div className="text-gray-700">Reservations</div>
           </div>
           <div className="bg-white/80 rounded-xl shadow p-6 text-center">
-            <div className="text-2xl font-bold text-primary">{stats?.openSlots ?? '--'}</div>
+            <div className="text-2xl font-bold text-primary">{stats?.open_slots ?? '--'}</div>
             <div className="text-gray-700">Open slots</div>
           </div>
         </div>

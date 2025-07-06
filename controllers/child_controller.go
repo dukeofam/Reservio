@@ -14,8 +14,9 @@ import (
 
 func AddChild(w http.ResponseWriter, r *http.Request) {
 	type ChildRequest struct {
-		Name string `json:"name"`
-		Age  int    `json:"age"`
+		Name      string `json:"name"`
+		Birthdate string `json:"birthdate"`
+		Age       *int   `json:"age,omitempty"`
 	}
 	var body ChildRequest
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
@@ -23,8 +24,9 @@ func AddChild(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Validate child data
-	if err := utils.ValidateChild(body.Name, body.Age); err != nil {
+	// Validate child data (returns computed age)
+	age, err := utils.ValidateChild(body.Name, body.Birthdate, body.Age)
+	if err != nil {
 		if validationErr, ok := err.(utils.ValidationError); ok {
 			utils.RespondWithValidationError(w, http.StatusBadRequest, validationErr)
 		} else {
@@ -39,7 +41,7 @@ func AddChild(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	child := models.Child{Name: body.Name, Age: body.Age, ParentID: userID}
+	child := models.Child{Name: body.Name, Age: age, Birthdate: body.Birthdate, ParentID: userID}
 	if err := config.DB.Create(&child).Error; err != nil {
 		zap.L().Error("Failed to create child", zap.Error(err))
 		utils.RespondWithError(w, http.StatusInternalServerError, "Failed to create child")
@@ -49,9 +51,10 @@ func AddChild(w http.ResponseWriter, r *http.Request) {
 	utils.RespondWithSuccess(w, map[string]interface{}{
 		"message": "Child added successfully",
 		"child": map[string]interface{}{
-			"id":   child.ID,
-			"name": child.Name,
-			"age":  child.Age,
+			"id":        child.ID,
+			"name":      child.Name,
+			"age":       child.Age,
+			"birthdate": child.Birthdate,
 		},
 	})
 }
@@ -92,9 +95,10 @@ func GetChildren(w http.ResponseWriter, r *http.Request) {
 	var childrenData []map[string]interface{}
 	for _, child := range children {
 		childrenData = append(childrenData, map[string]interface{}{
-			"id":   child.ID,
-			"name": child.Name,
-			"age":  child.Age,
+			"id":        child.ID,
+			"name":      child.Name,
+			"age":       child.Age,
+			"birthdate": child.Birthdate,
 		})
 	}
 
@@ -143,8 +147,9 @@ func EditChild(w http.ResponseWriter, r *http.Request) {
 	}
 
 	type Req struct {
-		Name string `json:"name"`
-		Age  int    `json:"age"`
+		Name      string `json:"name"`
+		Birthdate string `json:"birthdate"`
+		Age       *int   `json:"age,omitempty"`
 	}
 	var body Req
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
@@ -152,29 +157,37 @@ func EditChild(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Validate updated data
+	// Determine final values
+	finalName := child.Name
 	if body.Name != "" {
-		if err := utils.ValidateChild(body.Name, body.Age); err != nil {
-			if validationErr, ok := err.(utils.ValidationError); ok {
-				utils.RespondWithValidationError(w, http.StatusBadRequest, validationErr)
-			} else {
-				utils.RespondWithError(w, http.StatusBadRequest, "Invalid child data")
-			}
-			return
-		}
-		child.Name = body.Name
+		finalName = body.Name
 	}
-	if body.Age != 0 {
-		if err := utils.ValidateChild(child.Name, body.Age); err != nil {
-			if validationErr, ok := err.(utils.ValidationError); ok {
-				utils.RespondWithValidationError(w, http.StatusBadRequest, validationErr)
-			} else {
-				utils.RespondWithError(w, http.StatusBadRequest, "Invalid child data")
-			}
-			return
-		}
-		child.Age = body.Age
+	finalBirth := child.Birthdate
+	if body.Birthdate != "" {
+		finalBirth = body.Birthdate
 	}
+	var finalAgePtr *int
+	if body.Age != nil {
+		finalAgePtr = body.Age
+	} else {
+		// use existing age as pointer
+		ageCopy := child.Age
+		finalAgePtr = &ageCopy
+	}
+
+	ageComputed, err := utils.ValidateChild(finalName, finalBirth, finalAgePtr)
+	if err != nil {
+		if validationErr, ok := err.(utils.ValidationError); ok {
+			utils.RespondWithValidationError(w, http.StatusBadRequest, validationErr)
+		} else {
+			utils.RespondWithError(w, http.StatusBadRequest, "Invalid child data")
+		}
+		return
+	}
+
+	child.Name = finalName
+	child.Birthdate = finalBirth
+	child.Age = ageComputed
 
 	if err := config.DB.Save(&child).Error; err != nil {
 		zap.L().Error("Failed to update child", zap.Error(err))
@@ -185,9 +198,10 @@ func EditChild(w http.ResponseWriter, r *http.Request) {
 	utils.RespondWithSuccess(w, map[string]interface{}{
 		"message": "Child updated successfully",
 		"child": map[string]interface{}{
-			"id":   child.ID,
-			"name": child.Name,
-			"age":  child.Age,
+			"id":        child.ID,
+			"name":      child.Name,
+			"age":       child.Age,
+			"birthdate": child.Birthdate,
 		},
 	})
 }
@@ -278,9 +292,10 @@ func GetChild(w http.ResponseWriter, r *http.Request) {
 
 	utils.RespondWithSuccess(w, map[string]interface{}{
 		"child": map[string]interface{}{
-			"id":   child.ID,
-			"name": child.Name,
-			"age":  child.Age,
+			"id":        child.ID,
+			"name":      child.Name,
+			"age":       child.Age,
+			"birthdate": child.Birthdate,
 		},
 	})
 }

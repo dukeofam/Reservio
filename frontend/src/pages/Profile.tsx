@@ -14,8 +14,48 @@ export default function ProfilePage() {
   const [children, setChildren] = useState(user?.children || []);
   const [childName, setChildName] = useState('');
   const [childAge, setChildAge] = useState('');
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [uploading, setUploading] = useState(false);
   const toast = useToast();
   const { t } = useTranslation();
+
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setSelectedFile(file);
+      const url = URL.createObjectURL(file);
+      setPreviewUrl(url);
+    }
+  };
+
+  const handleUploadPicture = async () => {
+    if (!selectedFile) {
+      toast('Please select a file', 'error');
+      return;
+    }
+
+    setUploading(true);
+    try {
+      const formData = new FormData();
+      formData.append('file', selectedFile);
+
+      await api.post('/user/profile-picture', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      });
+
+      await fetchProfile();
+      toast('Profile picture uploaded successfully', 'success');
+      setSelectedFile(null);
+      setPreviewUrl(null);
+    } catch (err: any) {
+      toast(err.response?.data?.error || 'Upload failed', 'error');
+    } finally {
+      setUploading(false);
+    }
+  };
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -55,6 +95,42 @@ export default function ProfilePage() {
   return (
     <div className="p-6 max-w-xl mx-auto space-y-8">
       <h1 className="text-2xl font-bold mb-4">{t('profile') ?? 'Profile'}</h1>
+      
+      {/* Profile Picture Section */}
+      <div className="space-y-4">
+        <h2 className="text-lg font-semibold">Profile Picture</h2>
+        <div className="flex items-center space-x-4">
+          {user?.profilePicture && (
+            <img 
+              src={user.profilePicture} 
+              alt="Profile" 
+              className="w-20 h-20 rounded-full object-cover border-2 border-gray-200"
+            />
+          )}
+          <div className="flex-1">
+            <input
+              type="file"
+              accept="image/*"
+              onChange={handleFileSelect}
+              className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-primary file:text-white hover:file:bg-primary-dark"
+            />
+            {previewUrl && (
+              <div className="mt-2">
+                <img src={previewUrl} alt="Preview" className="w-16 h-16 rounded-full object-cover" />
+                <button
+                  type="button"
+                  onClick={handleUploadPicture}
+                  disabled={uploading}
+                  className="mt-2 bg-primary hover:bg-primary-dark text-white px-4 py-2 rounded text-sm disabled:opacity-50"
+                >
+                  {uploading ? 'Uploading...' : 'Upload Picture'}
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
       <form onSubmit={handleSave} className="space-y-4">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>

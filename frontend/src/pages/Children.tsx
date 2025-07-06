@@ -1,11 +1,11 @@
-import { useChildren } from '../api/hooks';
+import { useChildren, useAdminChildren } from '../api/hooks';
 import { useAuth } from '../store/useAuth';
 import { Navigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 
 export default function ChildrenPage() {
   const { user } = useAuth();
-  const children = useChildren();
+  const children = user?.role === 'admin' ? useAdminChildren() : useChildren();
   const { t } = useTranslation();
 
   if (user?.role !== 'admin') {
@@ -21,7 +21,7 @@ export default function ChildrenPage() {
             <tr className="text-left">
               <th className="py-2">Name</th>
               <th className="py-2">Date of Birth</th>
-              <th className="py-2">Parent</th>
+              {user?.role === 'admin' && <th className="py-2">Parent</th>}
               <th className="py-2">Actions</th>
             </tr>
           </thead>
@@ -30,7 +30,7 @@ export default function ChildrenPage() {
               <tr key={child.id} className="border-t">
                 <td>{child.name}</td>
                 <td>{child.birthdate || '-'}</td>
-                <td>{child.parentEmail || '-'}</td>
+                {user?.role === 'admin' && <td>{child.parent?.email || '-'}</td>}
                 <td>
                   {/* Edit/Delete buttons here */}
                   <button className="text-blue-600 hover:underline mr-2">Edit</button>
