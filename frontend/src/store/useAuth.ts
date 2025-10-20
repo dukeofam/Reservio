@@ -27,11 +27,13 @@ export const useAuth = create<AuthState>((set) => ({
   login: async (email, password) => {
     set({ loading: true });
     try {
-      await api.post('/auth/login', { email, password });
+      const response = await api.post('/auth/login', { email, password });
       await (useAuth.getState().fetchProfile)();
-    } finally {
+    } catch (error) {
       set({ loading: false });
+      throw error;
     }
+    set({ loading: false });
   },
   logout: async () => {
     await api.post('/auth/logout');
@@ -48,10 +50,12 @@ export const useAuth = create<AuthState>((set) => ({
   register: async (email, password) => {
     set({ loading: true });
     try {
-      await api.post('/auth/register', { email, password });
+      const response = await api.post('/auth/register', { email, password });
       await (useAuth.getState().fetchProfile)();
-    } finally {
+    } catch (error) {
       set({ loading: false });
+      throw error;
     }
+    set({ loading: false });
   }
 })); 

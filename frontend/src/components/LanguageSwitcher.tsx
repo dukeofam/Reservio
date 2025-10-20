@@ -11,7 +11,7 @@ export default function LanguageSwitcher() {
     <select
       onChange={change}
       value={i18n.language}
-      className="bg-transparent text-white border border-white rounded px-2 py-1 text-sm focus:outline-none"
+      className="bg-white text-gray-700 border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
     >
       <option value="en">EN</option>
       <option value="cs">CZ</option>

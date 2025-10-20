@@ -88,11 +88,11 @@ export default function ReservationDialog({ open, date, slots, onClose, onReserv
                 </div>
                 {/* Slot select */}
                 <div className="mb-4">
-                  <label className="block text-sm font-medium mb-1">Slot</label>
+                  <label className="block text-sm font-medium mb-1">Available Time Slots</label>
                   <Listbox value={selectedSlot} onChange={setSelectedSlot}>
                     <div className="relative">
                       <Listbox.Button className="w-full bg-white border px-3 py-2 rounded flex justify-between items-center">
-                        <span>{selectedSlot ? `ID ${selectedSlot.id} (${selectedSlot.remaining} left)` : 'Select slot'}</span>
+                        <span>{selectedSlot ? `${selectedSlot.capacity} spots available (${selectedSlot.remaining} remaining)` : 'Select time slot'}</span>
                         <ChevronUpDownIcon className="h-5 w-5" />
                       </Listbox.Button>
                       <Transition
@@ -101,7 +101,7 @@ export default function ReservationDialog({ open, date, slots, onClose, onReserv
                         leave="transition duration-75" leaveFrom="opacity-100" leaveTo="opacity-0"
                       >
                         <Listbox.Options className="absolute mt-1 max-h-60 w-full overflow-auto rounded bg-white shadow-lg border text-sm">
-                          {slots.map((s) => (
+                          {slots.map((s, index) => (
                             <Listbox.Option
                               key={s.id}
                               value={s}
@@ -109,7 +109,8 @@ export default function ReservationDialog({ open, date, slots, onClose, onReserv
                             >
                               {({ selected }: { selected: boolean }) => (
                                 <span className={selected ? 'font-semibold flex items-center gap-1' : ''}>
-                                  {selected && <CheckIcon className="h-4 w-4" />} Slot #{s.id} ({s.remaining} left)
+                                  {selected && <CheckIcon className="h-4 w-4" />} 
+                                  {s.capacity} spots available ({s.remaining} remaining)
                                 </span>
                               )}
                             </Listbox.Option>

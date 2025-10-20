@@ -39,11 +39,12 @@ export function useReservations() {
 export function useChildren() {
   const [children, setChildren] = useState<any[]>([]);
   const { user } = useAuth();
-  useEffect(() => {
+  const refresh = () => {
     const path = user?.role === 'admin' ? '/admin/children' : '/parent/children';
     api.get(path).then(r => setChildren(r.data.data || r.data.children || [])).catch(() => {});
-  }, []);
-  return children;
+  };
+  useEffect(() => { refresh(); }, []);
+  return { children, refresh };
 }
 
 export function useAdminChildren() {
@@ -67,4 +68,11 @@ export function useAdminSlots() {
   const refresh = () => api.get('/admin/slots').then(r => setSlots(r.data.data)).catch(() => {});
   useEffect(() => { refresh(); }, []);
   return { slots, refresh };
+}
+
+export function useAdminUsers() {
+  const [users, setUsers] = useState<any[]>([]);
+  const refresh = () => api.get('/admin/users').then(r => setUsers(r.data.data || [])).catch(() => {});
+  useEffect(() => { refresh(); }, []);
+  return { users, refresh };
 } 

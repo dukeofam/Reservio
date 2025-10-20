@@ -8,6 +8,7 @@ import ReservationsPage from '../pages/Reservations';
 import AdminUsersPage from '../pages/AdminUsers';
 import ProfilePage from '../pages/Profile';
 import AdminSlotsPage from '../pages/AdminSlots';
+import AdminReservationsPage from '../pages/AdminReservations';
 
 export default function AppRoutes() {
   const { user } = useAuth();
@@ -28,8 +29,13 @@ export default function AppRoutes() {
       <Route path="/children" element={<ChildrenPage />} />
       <Route path="/reservations" element={<ReservationsPage />} />
       <Route path="/profile" element={<ProfilePage />} />
-      <Route path="/admin/users" element={<AdminUsersPage />} />
-      <Route path="/admin/slots" element={<AdminSlotsPage />} />
+      {user?.role === 'admin' && (
+        <>
+          <Route path="/admin/users" element={<AdminUsersPage />} />
+          <Route path="/admin/slots" element={<AdminSlotsPage />} />
+          <Route path="/admin/reservations" element={<AdminReservationsPage />} />
+        </>
+      )}
       <Route path="*" element={<Navigate to="/dashboard" />} />
     </Routes>
   );
